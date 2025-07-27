@@ -1,10 +1,254 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-  <title>我的网站</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>几何博客 - 我的主页</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS 变量定义，方便统一修改主题 */
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --primary-color: #4a90e2;
+            --secondary-color: #f5a623;
+            --card-bg-color: #ffffff;
+            --border-color: #dee2e6;
+            --header-bg: #2c3e50;
+            --header-text: #ecf0f1;
+        }
+
+        /* 基础重置和全局样式 */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.7;
+            overflow-x: hidden; /* 防止横向滚动 */
+            position: relative;
+        }
+
+        /* 背景几何图形 */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            z-index: -1;
+            opacity: 0.05;
+            transition: transform 0.5s ease-out;
+        }
+
+        /* 背景-右侧大圆 */
+        body::before {
+            width: 50vw;
+            height: 50vw;
+            background: var(--primary-color);
+            border-radius: 50%;
+            top: -20vw;
+            right: -20vw;
+        }
+
+        /* 背景-左下三角形 */
+        body::after {
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 40vw 40vw;
+            border-color: transparent transparent var(--secondary-color) transparent;
+            bottom: -10vw;
+            left: -10vw;
+            transform: rotate(-20deg);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部样式 */
+        .site-header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 2rem 1rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 5px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .site-header::before {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: 0;
+             width: 100%;
+             height: 100%;
+             background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent);
+             background-size: 40px 40px;
+             z-index: 0;
+        }
+
+        .site-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .site-nav a {
+            color: var(--header-text);
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 300;
+            transition: color 0.3s ease;
+        }
+
+        .site-nav a:hover {
+            color: var(--primary-color);
+        }
+
+        /* 文章卡片样式 */
+        .post-card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 2.5rem;
+            padding: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .post-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .post-title {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .post-title a {
+            text-decoration: none;
+            color: var(--text-color);
+            transition: color 0.3s ease;
+        }
+
+        .post-title a:hover {
+            color: var(--primary-color);
+        }
+
+        .post-meta {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .post-content p {
+            margin-bottom: 1rem;
+        }
+        
+        .post-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 页脚样式 */
+        .site-footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            margin-top: 3rem;
+            color: #6c757d;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .site-title {
+                font-size: 2rem;
+            }
+            .post-card {
+                padding: 1.5rem;
+            }
+            .post-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>你好，世界！</h1>
-  <p>这是我的第一个GitHub Pages网站。</p>
+
+    <header class="site-header">
+        <div class="container">
+            <h1 class="site-title">几何空间</h1>
+            <nav class="site-nav">
+                <a href="#">首页</a>
+                <a href="#">关于</a>
+                <a href="#">归档</a>
+                <a href="#">联系我</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <article class="post-card">
+            <h2 class="post-title"><a href="#">探索静态网站生成器的魅力</a></h2>
+            <p class="post-meta">发布于 <time datetime="2025-07-28">2025年7月28日</time></p>
+            <div class="post-content">
+                <p>欢迎来到我的第一篇博客！今天，我们来聊聊静态网站生成器。在这个动态内容管理系统（如WordPress）无处不在的时代，静态网站以其无与伦比的速度、安全性和简易性，重新获得了开发者的青睐。像Jekyll、Hugo和Hexo这样的工具，可以让你使用简单的Markdown文件来撰写内容，然后一键生成整个网站的HTML文件。</p>
+                <p>这个博客本身就是使用纯粹的HTML和CSS构建的，旨在展示静态页面的简洁之美。通过几何形状和干净的布局，我希望能创造一个既美观又易于阅读的环境。敬请期待更多关于技术、设计和生活的分享！</p>
+            </div>
+        </article>
+
+        <article class="post-card">
+            <h2 class="post-title"><a href="#">CSS中的几何美学：不仅仅是方和圆</a></h2>
+            <p class="post-meta">发布于 <time datetime="2025-07-22">2025年7月22日</time></p>
+            <div class="post-content">
+                <p>CSS为我们提供了创造丰富视觉效果的强大能力，其中就包括对几何图形的运用。除了常见的矩形（`div`的默认形态）和圆形（通过`border-radius: 50%`实现），我们还可以通过边框技巧创造三角形，或者使用`clip-path`属性裁剪出任意多边形，比如六边形或星形。</p>
+                <p>本页面的背景就是通过伪元素（`::before` 和 `::after`）创建的巨大几何图形。它们以极低的透明度固定在背景上，既增添了页面的设计感，又不会干扰前景内容的阅读。这种微妙的设计手法是现代网页设计中平衡功能与美学的一种体现。</p>
+            </div>
+        </article>
+
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2025 几何空间. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        // 添加一个简单的滚动视差效果
+        window.addEventListener('scroll', function() {
+            const scrollY = window.scrollY;
+            const body = document.body;
+
+            // 滚动时，让背景图形轻微移动，产生深度感
+            const beforeShape = body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+            const afterShape = body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+            
+            // 重新应用transform，因为我们不能直接在伪元素上设置
+            // 这里我们通过改变CSS变量来间接控制
+            document.querySelector('body::before').style.transform = `translateY(${scrollY * 0.1}px)`;
+            document.querySelector('body::after').style.transform = `translateY(${scrollY * 0.2}px) rotate(-20deg)`;
+        });
+
+        // 修正：直接操作伪元素样式是无效的，需要通过改变父元素的CSS变量来控制
+        // 我们将transform属性也放入CSS变量中
+        let styleSheet = document.styleSheets[0];
+        styleSheet.insertRule('body::before { transform: var(--before-transform, translateY(0)); }', styleSheet.cssRules.length);
+        styleSheet.insertRule('body::after { transform: var(--after-transform, rotate(-20deg)); }', styleSheet.cssRules.length);
+
+    </script>
+
 </body>
 </html>
