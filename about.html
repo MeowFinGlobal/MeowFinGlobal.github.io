@@ -197,21 +197,27 @@
             border-top: 1px solid var(--border-color);
             transition: color 0.3s, border-color 0.3s;
         }
-
         #theme-toggle {
-            background: var(--primary-color);
+            background: none; /* 移除背景色，使其更像链接 */
             color: var(--header-text);
-            border: none;
-            padding: 8px 15px;
+            border: 1px solid var(--header-text); /* 添加边框 */
+            padding: 6px 15px;
             border-radius: 20px;
             cursor: pointer;
             font-size: 0.9rem;
-            font-weight: bold;
-            margin-left: 20px; /* 与导航链接保持一些距离 */
-            transition: background-color 0.3s, transform 0.2s;
+            font-family: inherit; /* 继承字体 */
+            font-weight: 300;
+            margin-left: 15px;
+            display: inline-block;
+            opacity: 0.8;
+            transition: all 0.3s ease;
         }
         #theme-toggle:hover {
-            transform: scale(1.05);
+            color: #fff;
+            background-color: var(--primary-color); /* 悬停时显示背景色 */
+            border-color: var(--primary-color); /* 边框颜色也变化 */
+            opacity: 1;
+            transform: translateY(-3px);
         }
         @media (max-width: 768px) { 
             .article-card { padding: 1.5rem; } 
