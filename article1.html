@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>探索静态网站生成器的魅力 - 几何博客</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --primary-color: #4a90e2;
+            --secondary-color: #f5a623;
+            --card-bg-color: #ffffff;
+            --border-color: #dee2e6;
+            --header-bg: #2c3e50;
+            --header-text: #ecf0f1;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; }
+        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out; }
+        body::before { width: 50vw; height: 50vw; background: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
+        body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .site-header { background-color: var(--header-bg); color: var(--header-text); padding: 2rem 1rem; text-align: center; margin-bottom: 3rem; border-bottom: 5px solid var(--primary-color); position: relative; overflow: hidden; }
+        .site-header::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent); background-size: 40px 40px; z-index: 0; }
+        .site-title { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; position: relative; z-index: 1; }
+        .site-nav a { color: var(--header-text); text-decoration: none; margin: 0 15px; font-weight: 300; transition: all 0.3s ease; opacity: 0.8; display: inline-block; }
+        .site-nav a:hover { color: #fff; opacity: 1; transform: translateY(-3px); }
+        .article-card { background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 2.5rem; padding: 2.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: #333; }
+        .article-meta { color: #6c757d; font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        .article-content p { margin-bottom: 1.5rem; font-size: 1.1rem; }
+        .article-content a { color: var(--primary-color); text-decoration: none; }
+        .article-content a:hover { text-decoration: underline; }
+        .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: #6c757d; border-top: 1px solid var(--border-color); }
+        @media (max-width: 768px) { .article-card { padding: 1.5rem; } .article-title { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="container">
+            <h1 class="site-title">Enceladus的非财经空间</h1>
+            <nav class="site-nav">
+                <a href="./index.html">首页</a>
+                <a href="./about.html">行情</a>
+                <a href="#">归档</a>
+                <a href="#">联系我</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <article class="article-card">
+            <h1 class="article-title">论多大的星球才能维持大气层</h1>
+            <p class="article-meta">发布于 <time datetime="2025-07-28">2025年7月28日</time></p>
+            <div class="article-content">
+                <p>为什么地球拥有浓厚大气，而所有的小行星都不存在大气？为什么土卫六有大气，土卫二没有？答案并非单一，但其核心在于一场无声无息却至关重要的物理对抗：星球的引力对抗大气分子的热运动。而描述这场对抗的关键理论，就是“金斯逃逸”（Jeans Escape）。</p>
+                <p>首先，我们需要理解大气是什么。它是由无数个气体分子（如氮气、氧气、氢气等）组成的。而“温度”在微观层面上的本质，就是这些分子运动的剧烈程度。温度越高，分子的平均动能就越大。然而，并非所有分子的运动速度都一样。根据著名的麦克斯韦-玻尔兹曼分布，在特定温度下，气体分子的速度呈现一个分布范围：一小部分行动迟缓，大部分处于平均速度，但总有那么一小撮精力旺盛的有能之辈，它们的速度远远超过平均水平，构成了速度分布曲线的“高速尾翼”。正是这批“精英”，成为了逃逸的主力军。</p>
+                <p>每个星球都用自身的引力束缚着这些气体分子。要想从这里逃离，气体分子必须达到一个特定的最低速度，这个速度被称为逃逸速度 (Escape Velocity)。逃逸速度的大小取决于星球的两个核心参数：质量和半径。简单来说，星球质量越大、半径越小（即密度越大），其引力就越强，逃逸速度也就越高。</p>
+                <p>我们可以对比一下：</p>
+                <p>地球：逃逸速度约为 11.2公里/秒。这是一个相当坚固的牢笼。</p>
+                <p>火星：质量约为地球的1/10，逃逸速度约为 5.0公里/秒。牢笼比较弱。</p>
+                <p>月球：质量更小，逃逸速度仅为 2.4公里/秒。牢笼非常脆弱。</p>
+                <p>土卫二：质量更小，逃逸速度才 239米/秒。一股龙卷风都能把自己吹向太空。</p>
+                <p>在相同的温度（动能）下，质量越轻的气体分子，其运动速度就越快。氢（H₂）和氦（He）作为宇宙中最轻的元素，它们是最难拥有的；氮（N₂）、氧（O₂）、二氧化碳（CO₂）则是月半子，在相同温度下速度要慢得多，更难达到逃逸速度。这就解释了为什么像地球这样大小的行星，在其早期历史中已经丢失了几乎所有的原始氢和氦，但能够牢牢锁住更重的氮气和氧气。而像月球和火星这样引力较弱的星球，连中等质量的水蒸气、氮气都很难长期维持。金星甚至没有保护大气层的磁场，但它较大的引力足以将分子量大的二氧化碳牢牢锁定在大气层内，因此其大气主要由这种气体构成。</p>
+                <p>已知一颗星体的平均温度为300K，假设密度与地球相仿，其能维持一个二氧化碳大气层的最低临界质量是多少？</p>
+            </div>
+        </article>
+
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2025 Enceladus. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', function() {
+            const scrollY = window.scrollY;
+            document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+            document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+        });
+    </script>
+
+</body>
+</html>
