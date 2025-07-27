@@ -230,12 +230,8 @@
         // 添加一个简单的滚动视差效果
         window.addEventListener('scroll', function() {
             const scrollY = window.scrollY;
-            const body = document.body;
-
-            // 滚动时，让背景图形轻微移动，产生深度感
-            const beforeShape = body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
-            const afterShape = body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
-            
+            document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+            document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             // 重新应用transform，因为我们不能直接在伪元素上设置
             // 这里我们通过改变CSS变量来间接控制
             document.querySelector('body::before').style.transform = `translateY(${scrollY * 0.1}px)`;
