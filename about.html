@@ -8,89 +8,196 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        /* --- 默认 (白天) 模式颜色 --- */
+        /* CSS 变量定义 (日间模式 - 默认) */
         :root {
             --bg-color: #f8f9fa;
             --text-color: #212529;
+            --text-muted: #6c757d;
             --primary-color: #4a90e2;
             --secondary-color: #f5a623;
             --card-bg-color: #ffffff;
             --border-color: #dee2e6;
             --header-bg: #2c3e50;
             --header-text: #ecf0f1;
-            --text-muted: #6c757d;
             --card-shadow: rgba(0,0,0,0.05);
-            --article-title-color: #333;
+            --card-hover-shadow: rgba(0,0,0,0.1);
         }
 
-        /* --- 【新增/修改 1】: 定义黑夜模式下的颜色 --- */
+        /* --- 新增：黑夜模式样式 --- */
+        /* 当body标签含有'dark-mode'类时，以下变量会覆盖上面的默认值 */
         body.dark-mode {
             --bg-color: #121212;
             --text-color: #e0e0e0;
+            --text-muted: #a0aec0;
             --primary-color: #58a6ff;
             --secondary-color: #f7b731;
             --card-bg-color: #1e1e1e;
-            --border-color: #333;
+            --border-color: #333333;
             --header-bg: #1a202c;
             --header-text: #e2e8f0;
-            --text-muted: #a0aec0;
             --card-shadow: rgba(0,0,0,0.2);
-            --article-title-color: #f0f0f0;
+            --card-hover-shadow: rgba(0,0,0,0.3);
+        }
+        /* --- 新增结束 --- */
+
+
+        /* 基础重置和全局样式 */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            font-family: 'Inter', 'Noto Sans SC', sans-serif; 
-            background-color: var(--bg-color); 
-            color: var(--text-color); 
-            line-height: 1.7; 
-            overflow-x: hidden; 
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.7;
+            overflow-x: hidden;
             position: relative;
-            transition: background-color 0.3s, color 0.3s; /* 平滑过渡效果 */
-        }
-        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out; }
-        body::before { width: 50vw; height: 50vw; background: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
-        body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .site-header { background-color: var(--header-bg); color: var(--header-text); padding: 2rem 1rem; text-align: center; margin-bottom: 3rem; border-bottom: 5px solid var(--primary-color); position: relative; overflow: hidden; transition: background-color 0.3s; }
-        .site-header::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent); background-size: 40px 40px; z-index: 0; }
-        .site-title { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; position: relative; z-index: 1; }
-        .site-nav { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; } /* 优化导航栏布局 */
-        .site-nav a { color: var(--header-text); text-decoration: none; margin: 0 15px; font-weight: 300; transition: all 0.3s ease; opacity: 0.8; display: inline-block; }
-        .site-nav a:hover { color: #fff; opacity: 1; transform: translateY(-3px); }
-        .article-card { background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 2.5rem; padding: 2.5rem; box-shadow: 0 4px 15px var(--card-shadow); transition: background-color 0.3s, border-color 0.3s; }
-        .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: var(--article-title-color); }
-        .article-meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; transition: border-color 0.3s, color 0.3s; }
-        .article-content p, .article-content ul { margin-bottom: 1.5rem; font-size: 1.1rem; }
-        .article-content ul { padding-left: 25px; }
-        .article-content li { margin-bottom: 1rem; }
-        .article-content h2, .article-content h3 { margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); color: var(--article-title-color);}
-        .article-content a { color: var(--primary-color); text-decoration: none; }
-        .article-content a:hover { text-decoration: underline; }
-        .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: border-color 0.3s, color 0.3s; }
-        
-        /* --- 【新增/修改 2】: 切换按钮的样式 --- */
-        #theme-toggle {
-            background: var(--primary-color);
-            color: var(--header-text);
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: bold;
-            margin-left: 20px; /* 与导航链接保持一些距离 */
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        #theme-toggle:hover {
-            transform: scale(1.05);
+            /* 新增：为颜色变化添加平滑过渡 */
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        @media (max-width: 768px) { 
-            .article-card { padding: 1.5rem; } 
-            .article-title { font-size: 1.8rem; } 
-            #theme-toggle { margin-top: 1rem; }
+        /* 背景几何图形 (已应用JS所需的CSS变量) */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            z-index: -1;
+            opacity: 0.05;
+            transition: transform 0.5s ease-out;
         }
+
+        body::before {
+            width: 50vw;
+            height: 50vw;
+            background: var(--primary-color);
+            border-radius: 50%;
+            top: -20vw;
+            right: -20vw;
+            transform: var(--before-transform, translateY(0));
+        }
+
+        body::after {
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 40vw 40vw;
+            border-color: transparent transparent var(--secondary-color) transparent;
+            bottom: -10vw;
+            left: -10vw;
+            transform: var(--after-transform, rotate(-20deg));
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部样式 */
+        .site-header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 2rem 1rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 5px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        
+        .site-header::before {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: 0;
+             width: 100%;
+             height: 100%;
+             background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent);
+             background-size: 40px 40px;
+             z-index: 0;
+        }
+
+        .site-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .site-nav a {
+            color: var(--header-text);
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 300;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+            display: inline-block;
+        }
+
+        .site-nav a:hover {
+            color: #fff;
+            opacity: 1;
+            transform: translateY(-3px);
+        }
+
+        /* 卡片通用样式 */
+        .card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 2.5rem;
+            padding: 2rem;
+            box-shadow: 0 4px 15px var(--card-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px var(--card-hover-shadow);
+        }
+        
+        .card-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+            display: inline-block;
+            transition: border-color 0.3s;
+        }
+
+        /* 图表容器特定样式 */
+        .chart-container {
+            text-align: center;
+        }
+        
+        .chart-container h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+            transition: color 0.3s;
+        }
+
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 页脚样式 */
+        .site-footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            margin-top: 3rem;
+            color: var(--text-muted); /* 使用变量 */
+            border-top: 1px solid var(--border-color);
+            transition: color 0.3s, border-color 0.3s;
+        }
+
     </style>
 </head>
 <body>
