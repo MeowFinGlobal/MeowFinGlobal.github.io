@@ -188,11 +188,49 @@
     </footer>
 
     <script>
+        // 页面滚动时的背景视差效果
         window.addEventListener('scroll', function() {
             const scrollY = window.scrollY;
             document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
             document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
         });
+
+        // --- 黑夜模式切换逻辑 ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        // 函数：应用主题
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                body.classList.add('dark-mode');
+                themeToggle.textContent = '日间模式';
+            } else {
+                body.classList.remove('dark-mode');
+                themeToggle.textContent = '黑夜模式';
+            }
+        };
+
+        // 按钮点击事件
+        themeToggle.addEventListener('click', () => {
+            const isDarkMode = body.classList.contains('dark-mode');
+            const newTheme = isDarkMode ? 'light' : 'dark';
+            applyTheme(newTheme);
+            localStorage.setItem('theme', newTheme); // 将用户的选择保存到本地存储
+        });
+
+        // 页面加载时，检查用户的偏好
+        // 优先从本地存储中读取
+        const savedTheme = localStorage.getItem('theme');
+        // 其次检查用户的系统设置
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (prefersDark) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
     </script>
 
 </body>
