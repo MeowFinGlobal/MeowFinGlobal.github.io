@@ -63,9 +63,16 @@
         .article-card { background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 2.5rem; padding: 2.5rem; box-shadow: 0 4px 15px var(--card-shadow); transition: background-color 0.3s, border-color 0.3s; }
         .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: var(--article-title-color); }
         .article-meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; transition: border-color 0.3s, color 0.3s; }
+        
+        /* --- 修正: 调整内容容器样式 --- */
+        .article-content h3 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--article-title-color);
+        }
         .article-content pre {
-            white-space: pre-wrap;       /* CSS3 */
-            word-wrap: break-word;       /* Internet Explorer 5.5+ */
+            white-space: pre-wrap;
+            word-wrap: break-word;
             font-size: 0.9rem;
             background-color: var(--bg-color);
             padding: 1rem;
@@ -74,6 +81,8 @@
             color: var(--text-muted);
             transition: background-color 0.3s, border-color 0.3s, color 0.3s;
         }
+        /* --- 修正结束 --- */
+
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: border-color 0.3s, color 0.3s; }
         
         #theme-toggle {
@@ -115,7 +124,7 @@
                 <a href="./index.html">首页</a>
                 <a href="./about.html">行情</a>
                 <a href="#">归档</a>
-                <a href="./realtime.html">实时</a>
+                <a href="./live.html">实时</a>
                 <button id="theme-toggle">切换模式</button>
             </nav>
         </div>
@@ -127,8 +136,8 @@
             <h1 class="article-title">现时活跃的热带气旋</h1>
             <p class="article-meta">数据更新于 <time id="utc-time">正在加载实时UTC时间...</time></p>
             
-            <div class="article-content">
-                <pre id="cyclone-data">正在加载热带气旋数据...</pre>
+            <div id="cyclone-data-container" class="article-content">
+                <p id="loading-message">正在抓取初始数据...</p>
             </div>
         </article>
 
@@ -149,40 +158,89 @@
                 });
             });
 
-            // --- 实时数据加载逻辑 ---
-            // 1. 更新时间戳
+            // --- 实时数据加载逻辑 (已升级) ---
             const timeElement = document.getElementById('utc-time');
+            const dataContainer = document.getElementById('cyclone-data-container');
+            const loadingMessage = document.getElementById('loading-message');
+
+            // 1. 更新时间戳
             if (timeElement) {
                 const now = new Date();
                 timeElement.textContent = now.toUTCString();
                 timeElement.setAttribute('datetime', now.toISOString());
             }
 
-            // 2. 抓取并显示热带气旋数据
-            const dataElement = document.getElementById('cyclone-data');
-            if (dataElement) {
-                const dataUrl = 'https://science.nrlmry.navy.mil/geoips/tcdat/sectors/atcf_sector_file';
-                // --- FIX: Switched to a more reliable CORS proxy ---
+            // 2. 抓取并处理数据
+            if (dataContainer && loadingMessage) {
+                const initialUrl = 'https://science.nrlmry.navy.mil/geoips/tcdat/sectors/atcf_sector_file';
                 const proxyUrl = 'https://corsproxy.io/?';
-                
-                fetch(proxyUrl + encodeURIComponent(dataUrl))
+
+                fetch(proxyUrl + encodeURIComponent(initialUrl))
                     .then(response => {
-                        if (!response.ok) {
-                            throw new Error('网络响应错误 (Status: ' + response.status + ')');
-                        }
+                        if (!response.ok) throw new Error(`网络响应错误 (Status: ${response.status})`);
                         return response.text();
                     })
-                    .then(data => {
-                        // 如果成功获取数据，则显示内容，否则显示无活跃气旋
-                        dataElement.textContent = data.trim() ? data.trim() : '当前无活跃热带气旋。';
+                    .then(text => {
+                        const lines = text.trim().split('\n');
+                        const cycloneUrls = [];
+
+                        lines.forEach(line => {
+                            const parts = line.split(/\s+/);
+                            if (parts.length < 2) return;
+
+                            const prefix = parts[0]; // e.g., "01W"
+                            const dateStr = parts[2]; // e.g., "250727"
+
+                            if (prefix.length === 3 && prefix.endsWith('W')) {
+                                const number = prefix.substring(0, 2);
+                                const year = dateStr.substring(0, 2);
+                                const wpId = `wp${number}`;
+                                const finalUrl = `https://www.emc.ncep.noaa.gov/gc_wmb/vxt/DECKS/b${wpId}20${year}.dat`;
+                                cycloneUrls.push({ name: prefix, url: finalUrl });
+                            }
+                        });
+
+                        if (cycloneUrls.length === 0) {
+                            loadingMessage.textContent = '当前无活跃的西太平洋热带气旋。';
+                            return;
+                        }
+
+                        loadingMessage.textContent = `发现 ${cycloneUrls.length} 个活跃气旋，正在抓取详细数据...`;
+                        
+                        const fetchPromises = cycloneUrls.map(cyclone => {
+                            return fetch(proxyUrl + encodeURIComponent(cyclone.url))
+                                .then(res => {
+                                    if (!res.ok) throw new Error(`无法获取 ${cyclone.name} 的数据`);
+                                    return res.text();
+                                })
+                                .then(data => ({ name: cyclone.name, data: data.trim() }))
+                                .catch(err => ({ name: cyclone.name, data: `加载失败: ${err.message}` }));
+                        });
+
+                        return Promise.all(fetchPromises);
+                    })
+                    .then(results => {
+                        if (!results) return; // 如果没有URL，直接返回
+
+                        loadingMessage.style.display = 'none'; // 隐藏加载信息
+
+                        results.forEach(result => {
+                            const cycloneHeader = document.createElement('h3');
+                            cycloneHeader.textContent = `热带气旋: ${result.name}`;
+                            
+                            const dataPre = document.createElement('pre');
+                            dataPre.textContent = result.data;
+
+                            dataContainer.appendChild(cycloneHeader);
+                            dataContainer.appendChild(dataPre);
+                        });
                     })
                     .catch(error => {
-                        console.error('抓取数据时发生错误:', error);
-                        dataElement.textContent = '无法加载热带气旋数据。请稍后重试。\n错误详情: ' + error.message;
+                        console.error('抓取初始数据时发生错误:', error);
+                        loadingMessage.textContent = `无法加载热带气旋列表。\n错误详情: ${error.message}`;
                     });
             }
             // --- 逻辑结束 ---
-
 
             // 黑夜模式切换逻辑
             const themeToggle = document.getElementById('theme-toggle');
