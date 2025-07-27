@@ -265,21 +265,23 @@
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            
+        // 将所有脚本逻辑放在一个立即执行的函数表达式(IIFE)中，以避免污染全局作用域
+        (function() {
             // 页面滚动时的背景视差效果
             window.addEventListener('scroll', function() {
-                const scrollY = window.scrollY;
-                document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
-                document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+                // 使用 requestAnimationFrame 优化滚动性能
+                window.requestAnimationFrame(function() {
+                    const scrollY = window.scrollY;
+                    document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+                    document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+                });
             });
 
             // --- 黑夜模式切换逻辑 ---
-            // 确保在这个函数执行时，ID为'theme-toggle'的按钮已经存在
             const themeToggle = document.getElementById('theme-toggle');
             const body = document.body;
             
-            // 如果按钮不存在，则不执行后续操作，避免报错
+            // 确保按钮存在才执行后续代码
             if (themeToggle) {
                 // 函数：应用主题
                 const applyTheme = (theme) => {
@@ -297,22 +299,30 @@
                     const isDarkMode = body.classList.contains('dark-mode');
                     const newTheme = isDarkMode ? 'light' : 'dark';
                     applyTheme(newTheme);
-                    localStorage.setItem('theme', newTheme);
+                    // 使用 try-catch 块以防 localStorage 不可用
+                    try {
+                        localStorage.setItem('theme', newTheme);
+                    } catch (e) {
+                        console.error("无法访问 localStorage:", e);
+                    }
                 });
 
-                // 页面加载时，检查用户的偏好
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                if (savedTheme) {
-                    applyTheme(savedTheme);
-                } else if (prefersDark) {
-                    applyTheme('dark');
-                } else {
-                    applyTheme('light');
+                // 页面加载时，立即检查并应用主题
+                let initialTheme = 'light';
+                try {
+                    const savedTheme = localStorage.getItem('theme');
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (savedTheme) {
+                        initialTheme = savedTheme;
+                    } else if (prefersDark) {
+                        initialTheme = 'dark';
+                    }
+                } catch (e) {
+                    console.error("无法访问 localStorage:", e);
                 }
+                applyTheme(initialTheme);
             }
-        });
+        })();
     </script>
 
 </body>
