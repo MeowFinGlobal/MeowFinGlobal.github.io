@@ -36,7 +36,7 @@
             position: relative;
         }
 
-        /* 背景几何图形 */
+        /* 背景几何图形 (已应用JS所需的CSS变量) */
         body::before, body::after {
             content: '';
             position: fixed;
@@ -52,6 +52,7 @@
             border-radius: 50%;
             top: -20vw;
             right: -20vw;
+            transform: var(--before-transform, translateY(0));
         }
 
         body::after {
@@ -62,7 +63,7 @@
             border-color: transparent transparent var(--secondary-color) transparent;
             bottom: -10vw;
             left: -10vw;
-            transform: rotate(-20deg);
+            transform: var(--after-transform, rotate(-20deg));
         }
 
         .container {
@@ -103,17 +104,23 @@
             z-index: 1;
         }
 
+        /* --- 导航栏交互性修正 --- */
         .site-nav a {
             color: var(--header-text);
             text-decoration: none;
             margin: 0 15px;
             font-weight: 300;
-            transition: color 0.3s ease;
+            transition: all 0.3s ease; /* 应用于所有属性的过渡 */
+            opacity: 0.8; /* 默认状态稍暗 */
+            display: inline-block; /* 允许 transform 生效 */
         }
 
         .site-nav a:hover {
-            color: var(--primary-color);
+            color: #fff; /* 悬停时变亮 */
+            opacity: 1;
+            transform: translateY(-3px); /* 向上微移，提供反馈 */
         }
+        /* --- 修正结束 --- */
 
         /* 卡片通用样式 */
         .card {
@@ -210,18 +217,16 @@
         <p>&copy; 2025 几何空间. All Rights Reserved.</p>
     </footer>
 
+    <!-- --- JavaScript 脚本修正 --- -->
     <script>
-        // 沿用主页的滚动视差效果
+        // 通过CSS变量来安全地更新伪元素的transform属性，避免安全错误
         window.addEventListener('scroll', function() {
             const scrollY = window.scrollY;
             document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
             document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
         });
-
-        let styleSheet = document.styleSheets[0];
-        styleSheet.insertRule('body::before { transform: var(--before-transform, translateY(0)); }', styleSheet.cssRules.length);
-        styleSheet.insertRule('body::after { transform: var(--after-transform, rotate(-20deg)); }', styleSheet.cssRules.length);
     </script>
+    <!-- --- 修正结束 --- -->
 
 </body>
 </html>
