@@ -64,16 +64,16 @@
         .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: var(--article-title-color); }
         .article-meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; transition: border-color 0.3s, color 0.3s; }
         
-        /* --- 修正: 调整内容容器样式 --- */
         .article-content h3 {
             margin-top: 2rem;
             margin-bottom: 1rem;
             color: var(--article-title-color);
         }
         .article-content pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            white-space: pre;
+            overflow-x: auto;
             font-size: 0.9rem;
+            font-family: 'Courier New', Courier, monospace;
             background-color: var(--bg-color);
             padding: 1rem;
             border-radius: 8px;
@@ -81,7 +81,6 @@
             color: var(--text-muted);
             transition: background-color 0.3s, border-color 0.3s, color 0.3s;
         }
-        /* --- 修正结束 --- */
 
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: border-color 0.3s, color 0.3s; }
         
@@ -163,14 +162,12 @@
             const dataContainer = document.getElementById('cyclone-data-container');
             const loadingMessage = document.getElementById('loading-message');
 
-            // 1. 更新时间戳
             if (timeElement) {
                 const now = new Date();
                 timeElement.textContent = now.toUTCString();
                 timeElement.setAttribute('datetime', now.toISOString());
             }
 
-            // 2. 抓取并处理数据
             if (dataContainer && loadingMessage) {
                 const initialUrl = 'https://science.nrlmry.navy.mil/geoips/tcdat/sectors/atcf_sector_file';
                 const proxyUrl = 'https://corsproxy.io/?';
@@ -182,23 +179,37 @@
                     })
                     .then(text => {
                         const lines = text.trim().split('\n');
-                        const cycloneUrls = [];
+                        const cycloneUrlMap = new Map();
 
                         lines.forEach(line => {
-                            const parts = line.split(/\s+/);
-                            if (parts.length < 2) return;
+                            const parts = line.trim().split(/\s+/);
+                            if (parts.length < 3) return;
 
-                            const prefix = parts[0]; // e.g., "01W"
-                            const dateStr = parts[2]; // e.g., "250727"
+                            // --- 修正: 采用更稳健的解析逻辑 ---
+                            const prefix = parts[0].trim();
+                            let dateStr = null;
+                            
+                            // 循环查找第一个6位数字的字符串作为日期
+                            for (let i = 1; i < parts.length; i++) {
+                                if (/^\d{6}$/.test(parts[i])) {
+                                    dateStr = parts[i];
+                                    break;
+                                }
+                            }
+                            
+                            if (!dateStr) return; // 如果找不到日期，则跳过此行
+                            // --- 修正结束 ---
 
-                            if (prefix.length === 3 && prefix.endsWith('W')) {
+                            if (prefix.length === 3 && prefix.endsWith('W') && !cycloneUrlMap.has(prefix)) {
                                 const number = prefix.substring(0, 2);
                                 const year = dateStr.substring(0, 2);
                                 const wpId = `wp${number}`;
                                 const finalUrl = `https://www.emc.ncep.noaa.gov/gc_wmb/vxt/DECKS/b${wpId}20${year}.dat`;
-                                cycloneUrls.push({ name: prefix, url: finalUrl });
+                                cycloneUrlMap.set(prefix, finalUrl);
                             }
                         });
+
+                        const cycloneUrls = Array.from(cycloneUrlMap.entries()).map(([name, url]) => ({ name, url }));
 
                         if (cycloneUrls.length === 0) {
                             loadingMessage.textContent = '当前无活跃的西太平洋热带气旋。';
@@ -213,16 +224,36 @@
                                     if (!res.ok) throw new Error(`无法获取 ${cyclone.name} 的数据`);
                                     return res.text();
                                 })
-                                .then(data => ({ name: cyclone.name, data: data.trim() }))
+                                .then(data => {
+                                    const rawLines = data.trim().split('\n');
+                                    const processedTimestamps = new Set();
+                                    const cleanedLines = [];
+
+                                    rawLines.forEach(rawLine => {
+                                        const lineParts = rawLine.split(',');
+                                        if (lineParts.length < 11) return;
+
+                                        const timestamp = lineParts[2].trim();
+                                        if (processedTimestamps.has(timestamp)) {
+                                            return;
+                                        }
+                                        processedTimestamps.add(timestamp);
+                                        
+                                        const truncatedParts = lineParts.slice(0, 11);
+                                        const cleanedLine = truncatedParts.map(p => p.trim()).join(', ');
+                                        cleanedLines.push(cleanedLine);
+                                    });
+                                    return { name: cyclone.name, data: cleanedLines.join('\n') };
+                                })
                                 .catch(err => ({ name: cyclone.name, data: `加载失败: ${err.message}` }));
                         });
 
                         return Promise.all(fetchPromises);
                     })
                     .then(results => {
-                        if (!results) return; // 如果没有URL，直接返回
+                        if (!results) return;
 
-                        loadingMessage.style.display = 'none'; // 隐藏加载信息
+                        loadingMessage.style.display = 'none';
 
                         results.forEach(result => {
                             const cycloneHeader = document.createElement('h3');
@@ -240,7 +271,6 @@
                         loadingMessage.textContent = `无法加载热带气旋列表。\n错误详情: ${error.message}`;
                     });
             }
-            // --- 逻辑结束 ---
 
             // 黑夜模式切换逻辑
             const themeToggle = document.getElementById('theme-toggle');
@@ -256,30 +286,18 @@
                         themeToggle.textContent = '黑夜模式';
                     }
                 };
-
                 themeToggle.addEventListener('click', () => {
                     const isDarkMode = body.classList.contains('dark-mode');
                     const newTheme = isDarkMode ? 'light' : 'dark';
                     applyTheme(newTheme);
-                    try {
-                        localStorage.setItem('theme', newTheme);
-                    } catch (e) {
-                        console.error("无法访问 localStorage:", e);
-                    }
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
                 });
-
                 let initialTheme = 'light';
                 try {
                     const savedTheme = localStorage.getItem('theme');
                     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    if (savedTheme) {
-                        initialTheme = savedTheme;
-                    } else if (prefersDark) {
-                        initialTheme = 'dark';
-                    }
-                } catch (e) {
-                    console.error("无法访问 localStorage:", e);
-                }
+                    if (savedTheme) { initialTheme = savedTheme; } else if (prefersDark) { initialTheme = 'dark'; }
+                } catch (e) { console.error("无法访问 localStorage:", e); }
                 applyTheme(initialTheme);
             }
         })();
