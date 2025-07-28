@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <!-- 新增: 引入 Leaflet.js 地图库的 CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
     <style>
@@ -67,13 +66,34 @@
         .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: var(--article-title-color); }
         .article-meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; transition: border-color 0.3s, color 0.3s; }
         
-        /* 新增: 地图容器样式 */
         #map {
             height: 450px;
             width: 100%;
             margin-bottom: 2rem;
             border-radius: 8px;
             border: 1px solid var(--border-color);
+        }
+        /* --- 修正: 调整黑夜模式地图滤镜，使海洋更深 --- */
+        .dark-mode .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(30%) contrast(190%);
+        }
+
+        /* --- 新增: 地图图例样式 --- */
+        .legend {
+            padding: 6px 8px;
+            font: 12px/1.5 Arial, Helvetica, sans-serif;
+            background: var(--card-bg-color);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
         }
 
         .article-content h3 {
@@ -164,8 +184,6 @@
 
     <script>
         (function() {
-            // ... (滚动效果和主题切换逻辑保持不变) ...
-
             const timeElement = document.getElementById('utc-time');
             const dataContainer = document.getElementById('cyclone-data-container');
             const loadingMessage = document.getElementById('loading-message');
@@ -177,9 +195,12 @@
             }
 
             const map = L.map('map').setView([20, 140], 4);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+            const lightTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            });
+            const darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            });
             const allBounds = [];
 
             if (dataContainer && loadingMessage) {
@@ -198,20 +219,15 @@
                         lines.forEach(line => {
                             const parts = line.trim().split(/\s+/);
                             if (parts.length < 3) return;
-
-                            // --- 修正: 采用更稳健的解析逻辑 ---
                             const prefix = parts[0].trim();
                             let dateStr = null;
-                            
                             for (let i = 1; i < parts.length; i++) {
                                 if (/^\d{6}$/.test(parts[i])) {
                                     dateStr = parts[i];
                                     break;
                                 }
                             }
-                            
                             if (!dateStr) return;
-                            // --- 修正结束 ---
 
                             if (prefix.length === 3 && prefix.endsWith('W') && !cycloneUrlMap.has(prefix)) {
                                 const number = prefix.substring(0, 2);
@@ -273,16 +289,29 @@
                         loadingMessage.style.display = 'none';
 
                         results.forEach(result => {
-                            if (result.track && result.track.length > 0) {
-                                const latlngs = result.track.map(p => [p.lat, p.lon]);
-                                const polyline = L.polyline(latlngs, { color: getColorByIntensity(result.track[result.track.length - 1].intensity) }).addTo(map);
+                            // --- 修正: 绘制分段着色的路径 ---
+                            if (result.track && result.track.length > 1) {
+                                for (let i = 0; i < result.track.length - 1; i++) {
+                                    const startPoint = result.track[i];
+                                    const endPoint = result.track[i+1];
+                                    const segmentColor = getColorByIntensity(startPoint.intensity);
+                                    L.polyline([[startPoint.lat, startPoint.lon], [endPoint.lat, endPoint.lon]], {
+                                        color: segmentColor,
+                                        weight: 3
+                                    }).addTo(map);
+                                }
+                                
                                 const latestPoint = result.track[result.track.length - 1];
                                 L.marker([latestPoint.lat, latestPoint.lon])
                                     .addTo(map)
-                                    .bindPopup(`<b>${result.name}</b><br>当前强度: ${latestPoint.intensity} kts`);
+                                    .bindPopup(`<b>${result.name}</b><br>当前强度: ${latestPoint.intensity} kts`)
+                                    .bindTooltip(result.name, { permanent: true, direction: 'right', offset: [10, 0] })
+                                    .openTooltip();
                                 
-                                allBounds.push(polyline.getBounds());
+                                const trackBounds = L.latLngBounds(result.track.map(p => [p.lat, p.lon]));
+                                allBounds.push(trackBounds);
                             }
+                            // --- 修正结束 ---
 
                             const cycloneHeader = document.createElement('h3');
                             cycloneHeader.textContent = `热带气旋: ${result.name}`;
@@ -303,15 +332,33 @@
                     });
             }
 
+            // --- 修正: 更新颜色函数以匹配您的要求 ---
             function getColorByIntensity(knots) {
-                if (knots >= 137) return '#ff00ff'; // Cat 5
-                if (knots >= 113) return '#ff4500'; // Cat 4
-                if (knots >= 96) return '#ff8c00';  // Cat 3
-                if (knots >= 83) return '#ffc300';  // Cat 2
-                if (knots >= 64) return '#ffd700';  // Cat 1 (TY)
-                if (knots >= 34) return '#00bfff';  // TS
-                return '#4682b4'; // TD or lower
+                if (knots >= 160) return '#800080'; // 紫色
+                if (knots >= 130) return '#FF0000'; // 红色
+                if (knots >= 100) return '#FFA500'; // 橙色
+                if (knots >= 65) return '#FFFF00';  // 浅黄 (改为纯黄更明显)
+                if (knots >= 35) return '#87CEEB';  // 浅蓝
+                if (knots >= 25) return '#00008B';  // 深蓝
+                return '#A9A9A9'; // 灰色 (低于25)
             }
+
+            // --- 新增: 创建地图图例 ---
+            const legend = L.control({position: 'bottomright'});
+            legend.onAdd = function (map) {
+                const div = L.DomUtil.create('div', 'info legend');
+                const grades = [25, 35, 65, 100, 130, 160];
+                const labels = ['25-34 kts', '35-64 kts', '65-99 kts', '100-129 kts', '130-159 kts', '160+ kts'];
+                div.innerHTML += '<h4>风速 (kts)</h4>';
+                for (let i = 0; i < grades.length; i++) {
+                    div.innerHTML +=
+                        '<i style="background:' + getColorByIntensity(grades[i]) + '"></i> ' +
+                        labels[i] + '<br>';
+                }
+                return div;
+            };
+            legend.addTo(map);
+            // --- 图例结束 ---
 
             // 黑夜模式切换逻辑
             const themeToggle = document.getElementById('theme-toggle');
@@ -321,9 +368,13 @@
                     if (theme === 'dark') {
                         body.classList.add('dark-mode');
                         themeToggle.textContent = '日间模式';
+                        map.removeLayer(lightTile);
+                        darkTile.addTo(map);
                     } else {
                         body.classList.remove('dark-mode');
                         themeToggle.textContent = '黑夜模式';
+                        map.removeLayer(darkTile);
+                        lightTile.addTo(map);
                     }
                 };
                 themeToggle.addEventListener('click', () => {
