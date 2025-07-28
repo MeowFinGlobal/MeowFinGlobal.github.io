@@ -37,6 +37,25 @@
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
         #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
+                /* 【新增】: 图表容器样式 */
+        .chart-wrapper {
+            position: relative;
+            height: 400px; /* 您可以根据需要调整高度 */
+            margin: 2rem 0;
+        }
+        /* 【新增】: 原始数据展示区域样式 */
+        .raw-data {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            white-space: pre; /* 保留换行和空格 */
+            overflow-x: auto; /* 内容过长时可滚动 */
+            color: var(--text-muted);
+        }
+        
     </style>
 </head>
 <body>
@@ -60,7 +79,187 @@
             <p class="article-meta">存档日期: <time datetime="YYYY-MM-DD">2025年07月28日</time></p>
             <div class="article-content">
                 <p>机器学习工具ENceladus Method对热带气旋 WP012025 的详细评价和分析...</p>
-                <!-- 您可以在此添加图表、数据、文字等 -->
+                                <div class="chart-wrapper">
+                    <canvas id="cycloneChart"></canvas>
+                </div>
+                
+                <h3>原始数据记录</h3>
+                <div class="raw-data">
+WP, 01, 2025061012, ENM, 30, ADT, 25, AIDT, 25, BST, 25
+WP, 01, 2025061018, ENM, 29, ADT, 30, AIDT, 29, BST, 30
+WP, 01, 2025061100, ENM, 35, ADT, 33, AIDT, 31, BST, 30
+WP, 01, 2025061106, ENM, 30, ADT, 31, AIDT, 34, BST, 30
+WP, 01, 2025061112, ENM, 33, ADT, 32, AIDT, 31, BST, 35
+WP, 01, 2025061118, ENM, 43, ADT, 34, AIDT, 34, BST, 40
+WP, 01, 2025061200, ENM, 50, ADT, 39, AIDT, 36, BST, 45
+WP, 01, 2025061206, ENM, 59, ADT, 37, AIDT, 37, BST, 50
+WP, 01, 2025061212, ENM, 54, ADT, 39, AIDT, 36, BST, 50
+WP, 01, 2025061218, ENM, 59, ADT, 47, AIDT, 40, BST, 55
+WP, 01, 2025061300, ENM, 67, ADT, 55, AIDT, 45, BST, 60
+WP, 01, 2025061306, ENM, 57, ADT, 57, AIDT, 43, BST, 60
+WP, 01, 2025061312, ENM, 54, ADT, 49, AIDT, 55, BST, 60
+WP, 01, 2025061318, ENM, 49, ADT, 43, AIDT, 47, BST, 55
+WP, 01, 2025061400, ENM, 53, ADT, 57, AIDT, 54, BST, 65
+WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2025 Enceladus. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- 数据解析 ---
+            const rawData = `
+WP, 01, 2025061012, ENM, 30, ADT, 25, AIDT, 25, BST, 25
+WP, 01, 2025061018, ENM, 29, ADT, 30, AIDT, 29, BST, 30
+WP, 01, 2025061100, ENM, 35, ADT, 33, AIDT, 31, BST, 30
+WP, 01, 2025061106, ENM, 30, ADT, 31, AIDT, 34, BST, 30
+WP, 01, 2025061112, ENM, 33, ADT, 32, AIDT, 31, BST, 35
+WP, 01, 2025061118, ENM, 43, ADT, 34, AIDT, 34, BST, 40
+WP, 01, 2025061200, ENM, 50, ADT, 39, AIDT, 36, BST, 45
+WP, 01, 2025061206, ENM, 59, ADT, 37, AIDT, 37, BST, 50
+WP, 01, 2025061212, ENM, 54, ADT, 39, AIDT, 36, BST, 50
+WP, 01, 2025061218, ENM, 59, ADT, 47, AIDT, 40, BST, 55
+WP, 01, 2025061300, ENM, 67, ADT, 55, AIDT, 45, BST, 60
+WP, 01, 2025061306, ENM, 57, ADT, 57, AIDT, 43, BST, 60
+WP, 01, 2025061312, ENM, 54, ADT, 49, AIDT, 55, BST, 60
+WP, 01, 2025061318, ENM, 49, ADT, 43, AIDT, 47, BST, 55
+WP, 01, 2025061400, ENM, 53, ADT, 57, AIDT, 54, BST, 65
+WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
+            `.trim();
+
+            const labels = [];
+            const enmData = [];
+            const adtData = [];
+            const aidtData = [];
+            const bstData = [];
+
+            rawData.split('\n').forEach(line => {
+                const parts = line.split(',').map(p => p.trim());
+                const timestamp = parts[2]; // YYYYMMDDHH
+                
+                // 格式化时间标签，例如 "06/10 12Z"
+                const month = timestamp.substring(4, 6);
+                const day = timestamp.substring(6, 8);
+                const hour = timestamp.substring(8, 10);
+                labels.push(`${month}/${day} ${hour}Z`);
+                
+                enmData.push(parseInt(parts[4]));
+                adtData.push(parseInt(parts[6]));
+                aidtData.push(parseInt(parts[8]));
+                bstData.push(parseInt(parts[10]));
+            });
+
+            // --- Chart.js 图表初始化 ---
+            const ctx = document.getElementById('cycloneChart').getContext('2d');
+            
+            const cycloneChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'ENM 强度',
+                            data: enmData,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1, // 使线条稍微平滑
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'ADT 强度',
+                            data: adtData,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'AIDT 强度',
+                            data: aidtData,
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'BST 强度',
+                            data: bstData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 3, // BST作为基准，线条稍粗
+                            borderDash: [5, 5], // 虚线样式
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'WP012025 强度分析对比 (单位: KT)',
+                            font: { size: 16 }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '强度 (Knots)'
+                            }
+                        },
+                        x: {
+                             title: {
+                                display: true,
+                                text: '时间 (月/日 时Z)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- 黑夜/日间模式与图表联动 ---
+            // (这段代码需要您页面中有黑夜模式切换的JS，这里是示例)
+            const applyChartTheme = (theme) => {
+                const isDark = theme === 'dark';
+                const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                const tickColor = isDark ? '#bbb' : '#666';
+                const titleColor = isDark ? '#e0e0e0' : '#212529';
+                
+                cycloneChart.options.scales.x.grid.color = gridColor;
+                cycloneChart.options.scales.y.grid.color = gridColor;
+                cycloneChart.options.scales.x.ticks.color = tickColor;
+                cycloneChart.options.scales.y.ticks.color = tickColor;
+                cycloneChart.options.scales.x.title.color = tickColor;
+                cycloneChart.options.scales.y.title.color = tickColor;
+                cycloneChart.options.plugins.legend.labels.color = tickColor;
+                cycloneChart.options.plugins.title.color = titleColor;
+
+                cycloneChart.update();
+            };
             </div>
         </article>
     </main>
