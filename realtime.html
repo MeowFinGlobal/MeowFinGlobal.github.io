@@ -375,7 +375,8 @@
                 const latestPoint = track[track.length - 1];
                 const maxIntensity = d3.max(track, d => d.intensity);
                 const minPressure = d3.min(track, d => d.pressure > 800 ? d.pressure : null);
-                infoBox.html(`${cycloneName} ${name}<br>Max Intensity: ${maxIntensity}KT ${minPressure}hPa<br>${latestPoint.timestamp.slice(0,8)} ${latestPoint.timestamp.slice(8,12)}Z | Intensity: ${latestPoint.intensity}KT ${latestPoint.pressure}hPa`);
+                const ace = track.reduce((sum, p) => sum + Math.pow(p.intensity, 2) / 10000, 0).toFixed(2);
+                infoBox.html(`${cycloneName} ${name}<br>Max Intensity: ${maxIntensity}KT ${minPressure}hPa<br>${latestPoint.timestamp.slice(0,8)} ${latestPoint.timestamp.slice(8,12)}Z | Intensity: ${latestPoint.intensity}KT ${latestPoint.pressure}hPa ｜ ACE: ${ace}`);
                 
                 const chartContainer = d3.select(container).append("div").attr("class", "map-overlay intensity-chart-container");
                 drawIntensityChart(chartContainer, track);
