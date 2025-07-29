@@ -302,7 +302,7 @@
 
                 // 投影设置，可选设置 center: [180, 0] 为太平洋中心地图
                 const projection = d3.geoMercator()
-                    // .center([180, 0])  // 若希望以太平洋为中心可取消注释
+                    .center([180, 0])  // 若希望以太平洋为中心可取消注释
                     .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
 
                 const pathGenerator = d3.geoPath().projection(projection);
