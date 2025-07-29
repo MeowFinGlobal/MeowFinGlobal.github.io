@@ -25,8 +25,26 @@
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
-        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out; }
-        body::before { width: 50vw; height: 50vw; background: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
+        
+        /* --- 修正: 为背景图形的颜色变化添加平滑过渡 --- */
+        body::before, body::after { 
+            content: ''; 
+            position: fixed; 
+            z-index: -1; 
+            opacity: 0.05; 
+            transition: transform 0.5s ease-out, background-color 0.3s, border-color 0.3s; 
+        }
+        body::before { 
+            width: 50vw; 
+            height: 50vw; 
+            background-color: var(--primary-color); /* 使用 background-color */
+            border-radius: 50%; 
+            top: -20vw; 
+            right: -20vw; 
+            transform: var(--before-transform, translateY(0)); 
+        }
+        /* --- 修正结束 --- */
+
         body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         .site-header { background-color: var(--header-bg); color: var(--header-text); padding: 2rem 1rem; text-align: center; margin-bottom: 3rem; border-bottom: 5px solid var(--primary-color); position: relative; overflow: hidden; transition: background-color 0.3s; }
