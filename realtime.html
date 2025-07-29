@@ -354,7 +354,7 @@
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
-                const projection = d3.geoMercator().fitExtent([[20, 20], [width - 20, height - 20]], trackLineString);
+                const projection = d3.geoMercator().fitExtent([[100, 100], [width - 100, height - 100]], trackLineString);
                 const pathGenerator = d3.geoPath().projection(projection);
 
                 svg.append("path").attr("d", pathGenerator({type: "Sphere"})).attr("fill", "var(--map-ocean-color)");
