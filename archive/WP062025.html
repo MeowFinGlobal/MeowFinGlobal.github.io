@@ -93,7 +93,7 @@
 
     <main class="container">
         <article class="article-card">
-            <h1 class="article-title">ENM评价存档: WP062025</h1>
+            <h1 class="article-title">ENM评价存档: WP062025 05</h1>
             <p class="article-meta">存档日期: <time datetime="2025-07-28">2025年07月28日</time></p>
             <div class="article-content">
                 <p>机器学习工具ENceladus Method对热带气旋 WP062025 的详细评价和分析...</p>
@@ -168,10 +168,16 @@ WP, 06, 2025071500, ENM, 32, ADT, 25, AIDT, 38, BST, 30
                 bstData.push(parseInt(parts[10]));
             });
 
+            // --- 新增: 从标题中提取气旋信息 ---
+            const titleElement = document.querySelector('.article-title');
+            const titleText = titleElement ? titleElement.textContent : '';
+            const match = titleText.match(/WP\d{2}(\d{4})\s+(\d{2})/);
+            const cycloneYear = match ? match[1] : '2025';
+            const cycloneNumber = match ? match[2] : '05';
+
             const ctx = document.getElementById('cycloneChart');
-            let cycloneChart = null; // 将图表实例设为全局
             if (ctx) {
-                cycloneChart = new Chart(ctx.getContext('2d'), { // 初始化图表
+                const cycloneChart = new Chart(ctx.getContext('2d'), {
                     type: 'line',
                     data: {
                         labels: labels,
@@ -185,8 +191,31 @@ WP, 06, 2025071500, ENM, 32, ADT, 25, AIDT, 38, BST, 30
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        // --- 新增: 点击事件处理 ---
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const elementIndex = elements[0].index;
+                                const fullTimestamp = fullTimestamps[elementIndex];
+                                const mmddhh = fullTimestamp.substring(4); // 提取 MMDDHH
+                                
+                                const imageUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/${cycloneYear}${cycloneNumber}/2/512x512/HMW925${mmddhh}.${cycloneYear}${cycloneNumber}.jpg`;
+                                
+                                const wrapper = document.getElementById('image-display-wrapper');
+                                const img = document.getElementById('satellite-image');
+                                const timestampP = document.getElementById('image-timestamp');
+
+                                img.src = imageUrl;
+                                timestampP.textContent = `卫星云图: ${labels[elementIndex]}`;
+                                wrapper.style.display = 'block';
+
+                                img.onerror = () => {
+                                    img.alt = `无法加载 ${labels[elementIndex]} 的卫星云图`;
+                                    timestampP.textContent = `无法加载 ${labels[elementIndex]} 的卫星云图`;
+                                };
+                            }
+                        },
                         plugins: {
-                            title: { display: true, text: 'WP062025 强度分析对比 (单位: KT)', font: { size: 16 } },
+                            title: { display: true, text: `WP${cycloneNumber}${cycloneYear} 强度分析对比 (单位: KT)`, font: { size: 16 } },
                             tooltip: { mode: 'index', intersect: false },
                             legend: { position: 'top' }
                         },
@@ -196,56 +225,53 @@ WP, 06, 2025071500, ENM, 32, ADT, 25, AIDT, 38, BST, 30
                         }
                     }
                 });
+
+                const themeToggle = document.getElementById('theme-toggle');
+                const body = document.body;
+
+                const applyChartTheme = (theme) => {
+                    if (!cycloneChart) return;
+                    const isDark = theme === 'dark';
+                    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                    const tickColor = isDark ? '#bbb' : '#666';
+                    const titleColor = isDark ? '#e0e0e0' : '#212529';
+                    
+                    cycloneChart.options.scales.x.grid.color = gridColor;
+                    cycloneChart.options.scales.y.grid.color = gridColor;
+                    cycloneChart.options.scales.x.ticks.color = tickColor;
+                    cycloneChart.options.scales.y.ticks.color = tickColor;
+                    cycloneChart.options.scales.x.title.color = tickColor;
+                    cycloneChart.options.scales.y.title.color = tickColor;
+                    cycloneChart.options.plugins.legend.labels.color = tickColor;
+                    cycloneChart.options.plugins.title.color = titleColor;
+                    cycloneChart.update();
+                };
+
+                const applyTheme = (theme) => {
+                    if (theme === 'dark') {
+                        body.classList.add('dark-mode');
+                        themeToggle.textContent = '日间模式';
+                    } else {
+                        body.classList.remove('dark-mode');
+                        themeToggle.textContent = '黑夜模式';
+                    }
+                    applyChartTheme(theme);
+                };
+
+                themeToggle.addEventListener('click', () => {
+                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+                    applyTheme(newTheme);
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
+                });
+
+                let initialTheme = 'light';
+                try {
+                    const savedTheme = localStorage.getItem('theme');
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (savedTheme) { initialTheme = savedTheme; } else if (prefersDark) { initialTheme = 'dark'; }
+                } catch (e) { console.error("无法访问 localStorage:", e); }
+                applyTheme(initialTheme);
             }
-
-            // --- 主题切换逻辑 ---
-            const themeToggle = document.getElementById('theme-toggle');
-            const body = document.body;
-
-            const applyChartTheme = (theme) => {
-                if (!cycloneChart) return; // 如果图表不存在，则不执行
-                const isDark = theme === 'dark';
-                const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-                const tickColor = isDark ? '#bbb' : '#666';
-                const titleColor = isDark ? '#e0e0e0' : '#212529';
-                
-                cycloneChart.options.scales.x.grid.color = gridColor;
-                cycloneChart.options.scales.y.grid.color = gridColor;
-                cycloneChart.options.scales.x.ticks.color = tickColor;
-                cycloneChart.options.scales.y.ticks.color = tickColor;
-                cycloneChart.options.scales.x.title.color = tickColor;
-                cycloneChart.options.scales.y.title.color = tickColor;
-                cycloneChart.options.plugins.legend.labels.color = tickColor;
-                cycloneChart.options.plugins.title.color = titleColor;
-                cycloneChart.update();
-            };
-
-            const applyTheme = (theme) => {
-                if (theme === 'dark') {
-                    body.classList.add('dark-mode');
-                    themeToggle.textContent = '日间模式';
-                } else {
-                    body.classList.remove('dark-mode');
-                    themeToggle.textContent = '黑夜模式';
-                }
-                applyChartTheme(theme);
-            };
-
-            themeToggle.addEventListener('click', () => {
-                const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
-                applyTheme(newTheme);
-                try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
-            });
-
-            // --- 修正: 将初始主题应用放在最后，确保图表已初始化 ---
-            let initialTheme = 'light';
-            try {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (savedTheme) { initialTheme = savedTheme; } else if (prefersDark) { initialTheme = 'dark'; }
-            } catch (e) { console.error("无法访问 localStorage:", e); }
-            applyTheme(initialTheme);
-            
         })();
     </script>
 
