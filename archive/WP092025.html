@@ -25,7 +25,6 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
         
-        /* --- 修正: 为背景图形的颜色变化添加平滑过渡 --- */
         body::before, body::after { 
             content: ''; 
             position: fixed; 
@@ -33,10 +32,12 @@
             opacity: 0.05; 
             transition: transform 0.5s ease-out, background-color 0.3s, border-color 0.3s; 
         }
+        
+        /* --- 修正: 使用 background-color 替代 background --- */
         body::before { 
             width: 50vw; 
             height: 50vw; 
-            background-color: var(--primary-color); /* 使用 background-color */
+            background-color: var(--primary-color); /* 确保与 transition 属性一致 */
             border-radius: 50%; 
             top: -20vw; 
             right: -20vw; 
