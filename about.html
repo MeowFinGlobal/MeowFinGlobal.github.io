@@ -233,14 +233,6 @@
             calculatePlanetaryParams();
 
             // --- 雷达测风估算逻辑 ---
-            const radarHeightInput = document.getElementById('radar-height');
-            const elevationAngleInput = document.getElementById('elevation-angle');
-            const distanceInput = document.getElementById('distance');
-            const rawWindSpeedInput = document.getElementById('raw-wind-speed');
-
-            const detectedHeightOutput = document.getElementById('detected-height');
-            const convertedWindOutput = document.getElementById('converted-wind');
-
             function calculateRadarWind() {
                 const hRadar = parseFloat(radarHeightInput.value);
                 const angleDeg = parseFloat(elevationAngleInput.value);
@@ -257,7 +249,17 @@
                 }
 
                 const angleRad = angleDeg * Math.PI / 180;
-                const heightKm = (distanceKm * Math.sin(angleRad)) + (hRadar / 1000);
+                const R_E = 6371000;         // 地球半径 (m)
+                const k = 4 / 3;             // 折射系数
+                const d = distanceKm * 1000; // 距离 (m)
+
+                const beamHeightM = Math.sqrt(
+                    Math.pow(d, 2) +
+                    Math.pow(k * R_E, 2) +
+                    2 * d * k * R_E * Math.sin(angleRad)
+                ) - k * R_E + hRadar;
+
+                const heightKm = beamHeightM / 1000;
 
                 let convertedSpeed;
                 if (heightKm < 0.7) {
@@ -269,12 +271,6 @@
                 detectedHeightOutput.textContent = heightKm.toFixed(2);
                 convertedWindOutput.textContent = convertedSpeed.toFixed(2);
             }
-
-            radarHeightInput.addEventListener('input', calculateRadarWind);
-            elevationAngleInput.addEventListener('input', calculateRadarWind);
-            distanceInput.addEventListener('input', calculateRadarWind);
-            rawWindSpeedInput.addEventListener('input', calculateRadarWind);
-            calculateRadarWind();
 
             // --- 主题切换逻辑 ---
             const themeToggle = document.getElementById('theme-toggle');
