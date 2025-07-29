@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <!-- 【修正】: 引入 Chart.js 库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -25,7 +24,6 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
         
-        /* --- 修正: 为背景图形的颜色变化添加平滑过渡 --- */
         body::before, body::after { 
             content: ''; 
             position: fixed; 
@@ -36,13 +34,12 @@
         body::before { 
             width: 50vw; 
             height: 50vw; 
-            background-color: var(--primary-color); /* 使用 background-color */
+            background-color: var(--primary-color);
             border-radius: 50%; 
             top: -20vw; 
             right: -20vw; 
             transform: var(--before-transform, translateY(0)); 
         }
-        /* --- 修正结束 --- */
 
         body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
@@ -61,11 +58,29 @@
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
         .chart-wrapper { position: relative; height: 400px; margin: 2rem 0; }
         .raw-data { background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; color: var(--text-muted); transition: all 0.3s ease; }
+        
+        /* --- 新增: 图像显示区域样式 --- */
+        #image-display-wrapper {
+            display: none; /* 默认隐藏 */
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        #satellite-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #000; /* 图片加载失败时的背景 */
+        }
+        #image-timestamp {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
-
-        <script>
+    <script>
         (function() {
             try {
                 const savedTheme = localStorage.getItem('theme');
@@ -73,9 +88,7 @@
                 if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
                     document.body.classList.add('dark-mode');
                 }
-            } catch (e) {
-                console.error("Could not access localStorage to set theme.");
-            }
+            } catch (e) { console.error("Could not access localStorage to set theme."); }
         })();
     </script>
     
@@ -98,6 +111,13 @@
             <p class="article-meta">存档日期: <time datetime="2025-07-28">2025年07月28日</time></p>
             <div class="article-content">
                 <p>机器学习工具ENceladus Method对热带气旋 WP012025 的详细评价和分析...</p>
+                
+                <!-- 新增: 图像显示区域 -->
+                <div id="image-display-wrapper">
+                    <img id="satellite-image" src="" alt="卫星云图">
+                    <p id="image-timestamp"></p>
+                </div>
+
                 <div class="chart-wrapper">
                     <canvas id="cycloneChart"></canvas>
                 </div>
@@ -129,17 +149,14 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
         <p>&copy; 2025 Enceladus. All Rights Reserved.</p>
     </footer>
 
-    <!-- 【修正】: 将所有脚本逻辑整合到页面底部 -->
     <script>
         (function() {
-            // --- 滚动效果 ---
             window.addEventListener('scroll', () => window.requestAnimationFrame(() => {
                 const scrollY = window.scrollY;
                 document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
                 document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             }));
             
-            // --- 图表绘制逻辑 ---
             const rawData = `
 WP, 01, 2025061012, ENM, 30, ADT, 25, AIDT, 25, BST, 25
 WP, 01, 2025061018, ENM, 29, ADT, 30, AIDT, 29, BST, 30
@@ -160,17 +177,26 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
             `.trim();
 
             const labels = [];
+            const fullTimestamps = []; // 新增: 存储完整时间戳
             const enmData = [], adtData = [], aidtData = [], bstData = [];
 
             rawData.split('\n').forEach(line => {
                 const parts = line.split(',').map(p => p.trim());
                 const timestamp = parts[2];
+                fullTimestamps.push(timestamp); // 存储 YYYYMMDDHH
                 labels.push(`${timestamp.substring(4, 6)}/${timestamp.substring(6, 8)} ${timestamp.substring(8, 10)}Z`);
                 enmData.push(parseInt(parts[4]));
                 adtData.push(parseInt(parts[6]));
                 aidtData.push(parseInt(parts[8]));
                 bstData.push(parseInt(parts[10]));
             });
+
+            // --- 新增: 从标题中提取气旋信息 ---
+            const titleElement = document.querySelector('.article-title');
+            const titleText = titleElement ? titleElement.textContent : '';
+            const match = titleText.match(/WP(\d{2})(\d{4})/);
+            const cycloneNumber = match ? match[1] : '01';
+            const cycloneYear = match ? match[2] : '2025';
 
             const ctx = document.getElementById('cycloneChart');
             if (ctx) {
@@ -188,8 +214,31 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        // --- 新增: 点击事件处理 ---
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const elementIndex = elements[0].index;
+                                const fullTimestamp = fullTimestamps[elementIndex];
+                                const mmddhh = fullTimestamp.substring(4); // 提取 MMDDHH
+                                
+                                const imageUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/${cycloneYear}${cycloneNumber}/2/512x512/HMW925${mmddhh}.${cycloneYear}${cycloneNumber}.jpg`;
+                                
+                                const wrapper = document.getElementById('image-display-wrapper');
+                                const img = document.getElementById('satellite-image');
+                                const timestampP = document.getElementById('image-timestamp');
+
+                                img.src = imageUrl;
+                                timestampP.textContent = `卫星云图: ${labels[elementIndex]}`;
+                                wrapper.style.display = 'block';
+
+                                img.onerror = () => {
+                                    img.alt = `无法加载 ${labels[elementIndex]} 的卫星云图`;
+                                    timestampP.textContent = `无法加载 ${labels[elementIndex]} 的卫星云图`;
+                                };
+                            }
+                        },
                         plugins: {
-                            title: { display: true, text: 'WP012025 强度分析对比 (单位: KT)', font: { size: 16 } },
+                            title: { display: true, text: `WP${cycloneNumber}${cycloneYear} 强度分析对比 (单位: KT)`, font: { size: 16 } },
                             tooltip: { mode: 'index', intersect: false },
                             legend: { position: 'top' }
                         },
@@ -200,11 +249,11 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
                     }
                 });
 
-                // --- 主题切换与图表联动 ---
                 const themeToggle = document.getElementById('theme-toggle');
                 const body = document.body;
 
                 const applyChartTheme = (theme) => {
+                    if (!cycloneChart) return;
                     const isDark = theme === 'dark';
                     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
                     const tickColor = isDark ? '#bbb' : '#666';
@@ -229,7 +278,7 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
                         body.classList.remove('dark-mode');
                         themeToggle.textContent = '黑夜模式';
                     }
-                    applyChartTheme(theme); // 更新图表主题
+                    applyChartTheme(theme);
                 };
 
                 themeToggle.addEventListener('click', () => {
