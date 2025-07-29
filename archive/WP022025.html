@@ -166,6 +166,7 @@ WP, 02, 2025062412, ENM, 29, ADT, 41, AIDT, 40, BST, 35
             `.trim();
 
             const labels = [];
+            const fullTimestamps = []; // 新增: 存储完整时间戳
             const enmData = [], adtData = [], aidtData = [], bstData = [];
 
             rawData.split('\n').forEach(line => {
