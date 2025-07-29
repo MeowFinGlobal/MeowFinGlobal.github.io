@@ -121,6 +121,7 @@
             border-radius: 5px;
         }
         .legend-box h4 { margin: 0 0 5px 0; }
+        .legend-box div { margin-bottom: 2px; }
         .legend-box i {
             width: 15px;
             height: 15px;
@@ -248,8 +249,6 @@
                                 if (/^\d{6}$/.test(parts[i])) { dateStr = parts[i]; break; }
                             }
                             if (!dateStr) return;
-                            
-                            // --- 修正: 同时检查 'W' 和 'C' 后缀 ---
                             if (prefix.length === 3 && (prefix.endsWith('W') || prefix.endsWith('C')) && !cycloneUrlMap.has(prefix)) {
                                 const number = prefix.substring(0, 2);
                                 const year = dateStr.substring(0, 2);
@@ -270,24 +269,10 @@
                         }
 
                         const cycloneNames = cycloneUrls.map(c => c.name).join(', ');
-                        loadingMessage.innerHTML = `发现 ${cycloneUrls.length} 个活跃气旋: <strong>${cycloneNames}</strong>。<br>正在抓取详细数据...`;
+                        loadingMessage.innerHTML = `发现 ${cycloneUrls.length} 个活跃气旋: <strong>${cycloneNames}</strong>。<br>正在分别加载详细数据...`;
                         
-                        const fetchPromises = cycloneUrls.map(cyclone => 
-                            fetch(proxyUrl + encodeURIComponent(cyclone.url))
-                                .then(res => res.text())
-                                .then(data => parseCycloneData(cyclone.name, data))
-                                .catch(err => ({ name: cyclone.name, data: `加载失败: ${err.message}`, track: [] }))
-                        );
-
-                        return Promise.all([Promise.resolve(world), ...fetchPromises]);
-                    })
-                    .then(results => {
-                        if (!results) return;
-                        loadingMessage.style.display = 'none';
-                        
-                        const [world, ...cyclones] = results;
-
-                        cyclones.forEach(cyclone => {
+                        // --- 修正: 异步独立加载和渲染 ---
+                        cycloneUrls.forEach(cyclone => {
                             const section = document.createElement('div');
                             section.className = 'cyclone-section';
 
@@ -296,18 +281,35 @@
                             
                             const mapContainer = document.createElement('div');
                             mapContainer.className = 'cyclone-map-container';
-                            mapContainer.id = `map-${cyclone.name}`;
-
+                            mapContainer.innerHTML = `<p style="padding:20px; text-align:center;">正在加载 ${cyclone.name} 的地图...</p>`;
+                            
                             const dataPre = document.createElement('pre');
-                            dataPre.textContent = cyclone.data;
+                            dataPre.textContent = `正在加载 ${cyclone.name} 的文本数据...`;
 
                             section.appendChild(header);
                             section.appendChild(mapContainer);
                             section.appendChild(dataPre);
                             dataContainer.appendChild(section);
 
-                            drawCycloneMap(mapContainer, world, cyclone);
+                            fetch(proxyUrl + encodeURIComponent(cyclone.url))
+                                .then(res => {
+                                    if(!res.ok) throw new Error(`网络请求失败`);
+                                    return res.text();
+                                })
+                                .then(data => {
+                                    const parsedData = parseCycloneData(cyclone.name, data);
+                                    dataPre.textContent = parsedData.data;
+                                    mapContainer.innerHTML = ''; // 清空加载提示
+                                    drawCycloneMap(mapContainer, world, parsedData);
+                                })
+                                .catch(err => {
+                                    console.error(`加载 ${cyclone.name} 失败:`, err);
+                                    mapContainer.innerHTML = `<p style="padding:20px; text-align:center; color:red;">加载 ${cyclone.name} 地图失败。</p>`;
+                                    dataPre.textContent = `加载失败: ${err.message}`;
+                                });
                         });
+
+                        loadingMessage.style.display = 'none';
                     })
                     .catch(error => {
                         console.error('处理数据时发生错误:', error);
@@ -354,7 +356,7 @@
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
-                const projection = d3.geoMercator().fitExtent([[100, 100], [width - 100, height - 100]], trackLineString);
+                const projection = d3.geoMercator().fitExtent([[90, 90], [width - 90, height - 90]], trackLineString);
                 const pathGenerator = d3.geoPath().projection(projection);
 
                 svg.append("path").attr("d", pathGenerator({type: "Sphere"})).attr("fill", "var(--map-ocean-color)");
@@ -369,7 +371,7 @@
                 }
                 track.forEach(point => {
                     const [px, py] = projection([point.lon, point.lat]);
-                    svg.append("circle").attr("cx", px).attr("cy", py).attr("r", 2).attr("fill", getColorByIntensity(point.intensity));
+                    svg.append("circle").attr("cx", px).attr("cy", py).attr("r", 4).attr("fill", getColorByIntensity(point.intensity));
                 });
                 
                 const infoBox = d3.select(container).append("div").attr("class", "map-overlay info-box");
