@@ -65,7 +65,21 @@
     </style>
 </head>
 <body>
-
+    
+    <script>
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch (e) {
+                console.error("Could not access localStorage to set theme.");
+            }
+        })();
+    </script>
+    
     <header class="site-header">
         <div class="container">
             <h1 class="site-title">Enceladus的非财经空间</h1>
