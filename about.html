@@ -36,7 +36,7 @@
         .tool-content { flex: 1 1 auto; }
 
         .tool-list { list-style: none; padding: 0; }
-        .tool-list a { display: block; padding: 0.75rem 1rem; margin-bottom: 0.5rem; background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 8px; text-decoration: none; color: var(--text-color); font-weight: bold; transition: all 0.3s ease; }
+        .tool-list a { display: block; padding: 0.75rem 1rem; margin-bottom: 0.5rem; background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 8px; text-decoration: none; color: var(--text-color); font-weight: bold; transition: all 0.3s ease; cursor: pointer; }
         .tool-list a.active, .tool-list a:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); transform: translateX(5px); }
         
         .tool-card { background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 15px var(--card-shadow); transition: all 0.3s ease; }
@@ -88,8 +88,9 @@
         <div class="toolbox-layout">
             <aside class="tool-nav">
                 <ul class="tool-list">
-                    <li><a href="#" class="active" data-tool="planetary-calculator">行星参数计算器</a></li>
-                    <!-- 在此添加更多工具的链接 -->
+                    <li><a class="active" data-tool="planetary-calculator">行星参数计算器</a></li>
+                    <!-- 【新增】: 新工具的导航链接 -->
+                    <li><a data-tool="new-tool-template">新工具模板</a></li>
                 </ul>
             </aside>
             <section class="tool-content">
@@ -118,7 +119,38 @@
                         </div>
                     </div>
                 </div>
-                <!-- 在此添加更多工具的div -->
+                
+                <!-- 【新增】: 新工具的内容卡片，默认隐藏 -->
+                <div id="new-tool-template" class="tool-card" style="display: none;">
+                    <h2 class="tool-title">雷达测风估算</h2>
+                    <div class="form-group">
+                        <label for="radar-height">雷达站高度 (m)</label>
+                        <input type="number" id="radar-height" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="elevation-angle">仰角 (°)</label>
+                        <input type="number" id="elevation-angle" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="distance">回波距离 (km)</label>
+                        <input type="number" id="distance" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="raw-wind-speed">风速 (m/s)</label>
+                        <input type="number" id="raw-wind-speed" value="15">
+                    </div>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <span class="result-label">探测层面高度 (km)</span>
+                            <p id="detected-height" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">换算后风速 (m/s)</span>
+                            <p id="converted-wind" class="result-value">-</p>
+                        </div>
+                    </div>
+                </div>
+
             </section>
         </div>
     </main>
@@ -135,6 +167,27 @@
                 document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
                 document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             }));
+
+            // --- 【新增】: 工具切换逻辑 ---
+            const toolLinks = document.querySelectorAll('.tool-list a');
+            const toolCards = document.querySelectorAll('.tool-card');
+
+            toolLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const toolId = this.getAttribute('data-tool');
+                    const targetTool = document.getElementById(toolId);
+
+                    toolLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+
+                    toolCards.forEach(card => card.style.display = 'none');
+
+                    if (targetTool) {
+                        targetTool.style.display = 'block';
+                    }
+                });
+            });
 
             // --- 行星参数计算器逻辑 ---
             const massInput = document.getElementById('mass');
@@ -161,20 +214,15 @@
                 const massKg = massEarthMultiples * M_EARTH;
                 const radiusM = radiusKm * 1000;
 
-                // 1. 计算密度
                 const volumeM3 = (4/3) * Math.PI * Math.pow(radiusM, 3);
                 const densityKgM3 = massKg / volumeM3;
                 const densityGcm3 = densityKgM3 / 1000;
                 densityOutput.textContent = densityGcm3.toFixed(2);
 
-                // 2. 计算表面重力
                 const gravityMs2 = (G * massKg) / Math.pow(radiusM, 2);
                 const gravityG = gravityMs2 / G_EARTH;
                 gravityOutput.textContent = gravityG.toFixed(2);
 
-                // 3. 计算洛希极限 (刚体卫星简化公式)
-                // d = R * (2 * rho_planet / rho_satellite)^(1/3)
-                // 假设卫星密度为月球密度 (3.34 g/cm^3)
                 const rhoSatellite = 3.34; 
                 const rocheLimitRadii = Math.pow(2 * densityGcm3 / rhoSatellite, 1/3);
                 rocheOutput.textContent = rocheLimitRadii.toFixed(2);
@@ -182,9 +230,51 @@
 
             massInput.addEventListener('input', calculatePlanetaryParams);
             radiusInput.addEventListener('input', calculatePlanetaryParams);
-            
-            // 页面加载时立即计算一次
             calculatePlanetaryParams();
+
+            // --- 雷达测风估算逻辑 ---
+            const radarHeightInput = document.getElementById('radar-height');
+            const elevationAngleInput = document.getElementById('elevation-angle');
+            const distanceInput = document.getElementById('distance');
+            const rawWindSpeedInput = document.getElementById('raw-wind-speed');
+
+            const detectedHeightOutput = document.getElementById('detected-height');
+            const convertedWindOutput = document.getElementById('converted-wind');
+
+            function calculateRadarWind() {
+                const hRadar = parseFloat(radarHeightInput.value);
+                const angleDeg = parseFloat(elevationAngleInput.value);
+                const distanceKm = parseFloat(distanceInput.value);
+                const windSpeed = parseFloat(rawWindSpeedInput.value);
+
+                if (
+                    isNaN(hRadar) || isNaN(angleDeg) || isNaN(distanceKm) || isNaN(windSpeed) ||
+                    hRadar < 0 || angleDeg < 0 || distanceKm <= 0 || windSpeed < 0
+                ) {
+                    detectedHeightOutput.textContent = '-';
+                    convertedWindOutput.textContent = '-';
+                    return;
+                }
+
+                const angleRad = angleDeg * Math.PI / 180;
+                const heightKm = (distanceKm * Math.sin(angleRad)) + (hRadar / 1000);
+
+                let convertedSpeed;
+                if (heightKm < 0.7) {
+                    convertedSpeed = (0.68 + 0.1 * heightKm) * windSpeed;
+                } else {
+                    convertedSpeed = (0.82 - 0.1 * heightKm) * windSpeed;
+                }
+
+                detectedHeightOutput.textContent = heightKm.toFixed(2);
+                convertedWindOutput.textContent = convertedSpeed.toFixed(2);
+            }
+
+            radarHeightInput.addEventListener('input', calculateRadarWind);
+            elevationAngleInput.addEventListener('input', calculateRadarWind);
+            distanceInput.addEventListener('input', calculateRadarWind);
+            rawWindSpeedInput.addEventListener('input', calculateRadarWind);
+            calculateRadarWind();
 
             // --- 主题切换逻辑 ---
             const themeToggle = document.getElementById('theme-toggle');
@@ -204,8 +294,6 @@
                     applyTheme(newTheme);
                     try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
                 });
-                // 初始主题应用已在页面顶部脚本完成
-                // 这里只需确保按钮文本正确
                 const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
                 applyTheme(currentTheme);
             }
