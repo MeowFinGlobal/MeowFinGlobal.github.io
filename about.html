@@ -253,11 +253,8 @@
                 const k = 4 / 3;             // 折射系数
                 const d = distanceKm * 1000; // 距离 (m)
 
-                const beamHeightM = Math.sqrt(
-                    Math.pow(d, 2) +
-                    Math.pow(k * R_E, 2) +
-                    2 * d * k * R_E * Math.sin(angleRad)
-                ) - k * R_E + hRadar;
+                const sqrtTerm = Math.pow(d, 2) + Math.pow(k * R_E, 2) + 2 * d * k * R_E * Math.sin(angleRad);
+                const beamHeightM = Math.max(0, Math.sqrt(sqrtTerm) - k * R_E + hRadar);
 
                 const heightKm = beamHeightM / 1000;
 
