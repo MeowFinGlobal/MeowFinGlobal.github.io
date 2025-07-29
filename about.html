@@ -89,8 +89,7 @@
             <aside class="tool-nav">
                 <ul class="tool-list">
                     <li><a class="active" data-tool="planetary-calculator">行星参数计算器</a></li>
-                    <!-- 【新增】: 新工具的导航链接 -->
-                    <li><a data-tool="new-tool-template">雷达测风估算</a></li>
+                    <li><a data-tool="radar-wind-calculator">雷达测风估算</a></li>
                 </ul>
             </aside>
             <section class="tool-content">
@@ -120,8 +119,7 @@
                     </div>
                 </div>
                 
-                <!-- 【新增】: 新工具的内容卡片，默认隐藏 -->
-                <div id="new-tool-template" class="tool-card" style="display: none;">
+                <div id="radar-wind-calculator" class="tool-card" style="display: none;">
                     <h2 class="tool-title">雷达测风估算</h2>
                     <div class="form-group">
                         <label for="radar-height">雷达站高度 (m)</label>
@@ -168,7 +166,7 @@
                 document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             }));
 
-            // --- 【新增】: 工具切换逻辑 ---
+            // --- 工具切换逻辑 ---
             const toolLinks = document.querySelectorAll('.tool-list a');
             const toolCards = document.querySelectorAll('.tool-card');
 
@@ -196,9 +194,9 @@
             const gravityOutput = document.getElementById('gravity');
             const rocheOutput = document.getElementById('roche');
 
-            const G = 6.67430e-11; // m^3 kg^-1 s^-2
-            const M_EARTH = 5.972e24; // kg
-            const G_EARTH = 9.80665; // m/s^2
+            const G = 6.67430e-11;
+            const M_EARTH = 5.972e24;
+            const G_EARTH = 9.80665;
 
             function calculatePlanetaryParams() {
                 const massEarthMultiples = parseFloat(massInput.value);
@@ -232,28 +230,32 @@
             radiusInput.addEventListener('input', calculatePlanetaryParams);
             calculatePlanetaryParams();
 
-            // --- 雷达测风估算逻辑 ---
+            // --- 【修正】: 雷达测风估算逻辑 ---
+            const radarHeightInput = document.getElementById('radar-height');
+            const elevationAngleInput = document.getElementById('elevation-angle');
+            const distanceInput = document.getElementById('distance');
+            const rawWindSpeedInput = document.getElementById('raw-wind-speed');
+            const detectedHeightOutput = document.getElementById('detected-height');
+            const convertedWindOutput = document.getElementById('converted-wind');
+
             function calculateRadarWind() {
                 const hRadar = parseFloat(radarHeightInput.value);
                 const angleDeg = parseFloat(elevationAngleInput.value);
                 const distanceKm = parseFloat(distanceInput.value);
                 const windSpeed = parseFloat(rawWindSpeedInput.value);
 
-                if (
-                    isNaN(hRadar) || isNaN(angleDeg) || isNaN(distanceKm) || isNaN(windSpeed) ||
-                    hRadar < 0 || angleDeg < 0 || distanceKm <= 0 || windSpeed < 0
-                ) {
+                if (isNaN(hRadar) || isNaN(angleDeg) || isNaN(distanceKm) || isNaN(windSpeed) || distanceKm <= 0) {
                     detectedHeightOutput.textContent = '-';
                     convertedWindOutput.textContent = '-';
                     return;
                 }
 
                 const angleRad = angleDeg * Math.PI / 180;
-                const R_E = 6371000;         // 地球半径 (m)
-                const k = 4 / 3;             // 折射系数
-                const d = distanceKm * 1000; // 距离 (m)
+                const R_E = 6371000;
+                const k = 4 / 3;
+                const d = distanceKm * 1000;
 
-                const hBeam = hRadar + (Math.pow(d, 2) / (2 * (k * R_E))) + (d * Math.tan(angleRad));
+                const hBeam = hRadar + (d * Math.sin(angleRad)) + (Math.pow(d, 2) / (2 * k * R_E));
                 const heightKm = hBeam / 1000;
 
                 let convertedSpeed;
@@ -266,6 +268,14 @@
                 detectedHeightOutput.textContent = heightKm.toFixed(2);
                 convertedWindOutput.textContent = convertedSpeed.toFixed(2);
             }
+
+            // 【修正】: 为雷达计算器添加事件监听器
+            radarHeightInput.addEventListener('input', calculateRadarWind);
+            elevationAngleInput.addEventListener('input', calculateRadarWind);
+            distanceInput.addEventListener('input', calculateRadarWind);
+            rawWindSpeedInput.addEventListener('input', calculateRadarWind);
+            calculateRadarWind(); // 页面加载时计算一次
+            // --- 修正结束 ---
 
             // --- 主题切换逻辑 ---
             const themeToggle = document.getElementById('theme-toggle');
