@@ -61,6 +61,24 @@
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
         .chart-wrapper { position: relative; height: 400px; margin: 2rem 0; }
         .raw-data { background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; color: var(--text-muted); transition: all 0.3s ease; }
+            /* --- 新增: 图像显示区域样式 --- */
+        #image-display-wrapper {
+            display: none; /* 默认隐藏 */
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        #satellite-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #000; /* 图片加载失败时的背景 */
+        }
+        #image-timestamp {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
