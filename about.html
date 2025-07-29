@@ -105,15 +105,101 @@
             </aside>
             <section class="tool-content">
                 <div id="planetary-calculator" class="tool-card" style="display: none;">
-                    <!-- Planetary Calculator Content -->
+                    <h2 class="tool-title">行星参数计算器</h2>
+                    <div class="form-group">
+                        <label for="mass">行星质量 (地球倍数, M⊕)</label>
+                        <input type="number" id="mass" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="radius">行星半径 (km)</label>
+                        <input type="number" id="radius" value="6371">
+                    </div>
+                    <div class="form-group">
+                        <label for="stellar-mass">恒星质量 (太阳倍数, M☉)</label>
+                        <input type="number" id="stellar-mass" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="stellar-luminosity">恒星光度 (太阳倍数, L☉)</label>
+                        <input type="number" id="stellar-luminosity" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="orbital-radius">公转半径 (AU)</label>
+                        <input type="number" id="orbital-radius" value="1">
+                    </div>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <span class="result-label">密度 (g/cm³)</span>
+                            <p id="density" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">表面重力 (g)</span>
+                            <p id="gravity" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">洛希极限 (行星半径)</span>
+                            <p id="roche" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">有效温度 (K)</span>
+                            <p id="effective-temperature" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">公转周期 (d)</span>
+                            <p id="orbital-period" class="result-value">-</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <div id="radar-wind-calculator" class="tool-card" style="display: none;">
-                    <!-- Radar Wind Calculator Content -->
+                    <h2 class="tool-title">雷达测风估算</h2>
+                    <div class="form-group">
+                        <label for="radar-height">雷达站高度 (m)</label>
+                        <input type="number" id="radar-height" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="elevation-angle">仰角 (°)</label>
+                        <input type="number" id="elevation-angle" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="distance">回波距离 (km)</label>
+                        <input type="number" id="distance" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="raw-wind-speed">风速 (m/s)</label>
+                        <input type="number" id="raw-wind-speed" value="15">
+                    </div>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <span class="result-label">探测层面高度 (km)</span>
+                            <p id="detected-height" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">换算后风速 (m/s)</span>
+                            <p id="converted-wind" class="result-value">-</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="ascat-corrector" class="tool-card" style="display: none;">
-                    <!-- ASCAT Corrector Content -->
+                    <h2 class="tool-title">ASCAT风扫低估修正估算</h2>
+                    <div class="form-group">
+                        <label for="ascat-wind">ASCAT最大风力 (KT)</label>
+                        <input type="number" id="ascat-wind" placeholder="输入风速值...">
+                    </div>
+                     <div class="form-group">
+                        <label for="ascat-uhr-wind">ASCAT UHR最大风力 (KT)</label>
+                        <input type="number" id="ascat-uhr-wind" placeholder="输入风速值...">
+                    </div>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <span class="result-label">ASCAT最大风力修正 (KT)</span>
+                            <p id="ascat-corrected" class="result-value">-</p>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">ASCAT UHR最大风力修正 (KT)</span>
+                            <p id="ascat-uhr-corrected" class="result-value">-</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="fnv3-ensemble" class="tool-card">
@@ -144,251 +230,201 @@
     <script src="https://unpkg.com/topojson@3"></script>
     <script>
         (function() {
-            // ... (Omitted other tool logics and theme switcher for brevity)
+            // --- 滚动效果 ---
+            window.addEventListener('scroll', () => window.requestAnimationFrame(() => {
+                const scrollY = window.scrollY;
+                document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+                document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+            }));
+
+            // --- 工具切换逻辑 (已修复) ---
+            const toolLinks = document.querySelectorAll('.tool-list a');
+            const toolCards = document.querySelectorAll('.tool-card');
+
+            toolLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const toolId = this.getAttribute('data-tool');
+                    const targetTool = document.getElementById(toolId);
+
+                    toolLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+
+                    toolCards.forEach(card => card.style.display = 'none');
+
+                    if (targetTool) {
+                        targetTool.style.display = 'block';
+                    }
+                });
+            });
+
+            // --- 行星参数计算器逻辑 ---
+            // (代码与之前版本相同，此处省略以保持简洁)
+            const massInput = document.getElementById('mass');
+            const radiusInput = document.getElementById('radius');
+            const stellarMassInput = document.getElementById('stellar-mass');
+            const stellarLuminosityInput = document.getElementById('stellar-luminosity');
+            const orbitalRadiusInput = document.getElementById('orbital-radius');
+            const densityOutput = document.getElementById('density');
+            const gravityOutput = document.getElementById('gravity');
+            const rocheOutput = document.getElementById('roche');
+            const effectiveTemperatureOutput = document.getElementById('effective-temperature');
+            const orbitalPeriodOutput = document.getElementById('orbital-period');
+            const G = 6.67430e-11, M_EARTH = 5.972e24, G_EARTH = 9.80665, L_SUN = 3.828e26, AU = 1.496e11, SIGMA = 5.670374e-8;
+
+            function calculatePlanetaryParams() {
+                const massEarthMultiples = parseFloat(massInput.value);
+                const radiusKm = parseFloat(radiusInput.value);
+                const stellarMassSolar = parseFloat(stellarMassInput.value);
+                const stellarLuminositySolar = parseFloat(stellarLuminosityInput.value);
+                const orbitalRadiusAU = parseFloat(orbitalRadiusInput.value);
+                let validPlanet = !isNaN(massEarthMultiples) && !isNaN(radiusKm) && massEarthMultiples > 0 && radiusKm > 0;
+                let validSystem = validPlanet && !isNaN(stellarMassSolar) && !isNaN(stellarLuminositySolar) && !isNaN(orbitalRadiusAU) && stellarMassSolar > 0 && stellarLuminositySolar > 0 && orbitalRadiusAU > 0;
+                if (validPlanet) {
+                    const massKg = massEarthMultiples * M_EARTH, radiusM = radiusKm * 1000, volumeM3 = (4/3) * Math.PI * Math.pow(radiusM, 3), densityKgM3 = massKg / volumeM3, densityGcm3 = densityKgM3 / 1000;
+                    densityOutput.textContent = densityGcm3.toFixed(2);
+                    const gravityMs2 = (G * massKg) / Math.pow(radiusM, 2), gravityG = gravityMs2 / G_EARTH;
+                    gravityOutput.textContent = gravityG.toFixed(2);
+                    const rhoSatellite = 3.34, rocheLimitRadii = Math.pow(2 * densityGcm3 / rhoSatellite, 1/3);
+                    rocheOutput.textContent = rocheLimitRadii.toFixed(2);
+                } else { densityOutput.textContent = '-'; gravityOutput.textContent = '-'; rocheOutput.textContent = '-'; }
+                if (validSystem) {
+                    const P_years = Math.sqrt(Math.pow(orbitalRadiusAU, 3) / stellarMassSolar), P_days = P_years * 365.25;
+                    orbitalPeriodOutput.textContent = P_days.toFixed(2);
+                    const L_star = stellarLuminositySolar * L_SUN, a_meters = orbitalRadiusAU * AU, albedo = 0.3, T_eff = Math.pow(L_star * (1 - albedo) / (16 * Math.PI * SIGMA * Math.pow(a_meters, 2)), 0.25);
+                    effectiveTemperatureOutput.textContent = T_eff.toFixed(2);
+                } else { orbitalPeriodOutput.textContent = '-'; effectiveTemperatureOutput.textContent = '-'; }
+            }
+            [massInput, radiusInput, stellarMassInput, stellarLuminosityInput, orbitalRadiusInput].forEach(input => input.addEventListener('input', calculatePlanetaryParams));
+            calculatePlanetaryParams();
+
+            // --- 雷达测风估算逻辑 ---
+            // (代码与之前版本相同，此处省略以保持简洁)
+            const radarHeightInput = document.getElementById('radar-height'), elevationAngleInput = document.getElementById('elevation-angle'), distanceInput = document.getElementById('distance'), rawWindSpeedInput = document.getElementById('raw-wind-speed'), detectedHeightOutput = document.getElementById('detected-height'), convertedWindOutput = document.getElementById('converted-wind');
+            function calculateRadarWind() {
+                const hRadar = parseFloat(radarHeightInput.value), angleDeg = parseFloat(elevationAngleInput.value), distanceKm = parseFloat(distanceInput.value), windSpeed = parseFloat(rawWindSpeedInput.value);
+                if (isNaN(hRadar) || isNaN(angleDeg) || isNaN(distanceKm) || isNaN(windSpeed) || distanceKm <= 0) { detectedHeightOutput.textContent = '-'; convertedWindOutput.textContent = '-'; return; }
+                const angleRad = angleDeg * Math.PI / 180, R_E = 6371000, k = 4 / 3, d = distanceKm * 1000, hBeam = hRadar + (d * Math.sin(angleRad)) + (Math.pow(d, 2) / (2 * k * R_E)), heightKm = hBeam / 1000;
+                let convertedSpeed = (heightKm < 0.7) ? (0.82 - 0.1 * heightKm) * windSpeed : (0.6975 + 0.075 * heightKm) * windSpeed;
+                detectedHeightOutput.textContent = heightKm.toFixed(2);
+                convertedWindOutput.textContent = convertedSpeed.toFixed(2);
+            }
+            [radarHeightInput, elevationAngleInput, distanceInput, rawWindSpeedInput].forEach(input => input.addEventListener('input', calculateRadarWind));
+            calculateRadarWind();
+
+            // --- ASCAT风扫修正逻辑 ---
+            // (代码与之前版本相同，此处省略以保持简洁)
+            const ascatWindInput = document.getElementById('ascat-wind'), ascatUhrWindInput = document.getElementById('ascat-uhr-wind'), ascatCorrectedOutput = document.getElementById('ascat-corrected'), ascatUhrCorrectedOutput = document.getElementById('ascat-uhr-corrected');
+            function calculateAscatCorrection() {
+                const xAscat = parseFloat(ascatWindInput.value);
+                if (!isNaN(xAscat) && xAscat > 0) { ascatCorrectedOutput.textContent = (0.0714285714288536 + 0.98531746031737 * xAscat - 0.00309523809523413 * Math.pow(xAscat, 2) + 0.000194444444444401 * Math.pow(xAscat, 3)).toFixed(2); } else { ascatCorrectedOutput.textContent = '-'; }
+                const xUhr = parseFloat(ascatUhrWindInput.value);
+                if (!isNaN(xUhr) && xUhr > 0) { ascatUhrCorrectedOutput.textContent = ((12046288647.1610 / (1 + Math.pow(xUhr / 1083013642.12723, -1.13807238856734))) - 0.042328422001323).toFixed(2); } else { ascatUhrCorrectedOutput.textContent = '-'; }
+            }
+            ascatWindInput.addEventListener('input', calculateAscatCorrection);
+            ascatUhrWindInput.addEventListener('input', calculateAscatCorrection);
+            calculateAscatCorrection();
 
             // --- FNV3 TC Ensemble Logic ---
             const generateBtn = document.getElementById('generate-fnv3-map');
             if (generateBtn) {
                 generateBtn.addEventListener('click', loadFnv3Data);
             }
-            
             async function loadFnv3Data() {
-                const statusEl = document.getElementById('fnv3-status');
-                const mapContainer = document.getElementById('fnv3-map-container');
-                const statsEl = document.getElementById('fnv3-stats');
-
-                mapContainer.style.display = 'none';
-                mapContainer.innerHTML = '';
-                statsEl.innerHTML = '';
-                statusEl.textContent = '正在寻找最新的数据文件...';
-
-                const filters = {
-                    lonMin: parseFloat(document.getElementById('lon-min').value),
-                    lonMax: parseFloat(document.getElementById('lon-max').value),
-                    latMin: parseFloat(document.getElementById('lat-min').value),
-                    latMax: parseFloat(document.getElementById('lat-max').value),
-                    leadTimeMin: parseFloat(document.getElementById('lead-time-min').value),
-                    leadTimeMax: parseFloat(document.getElementById('lead-time-max').value)
-                };
-
+                const statusEl = document.getElementById('fnv3-status'), mapContainer = document.getElementById('fnv3-map-container'), statsEl = document.getElementById('fnv3-stats');
+                mapContainer.style.display = 'none'; mapContainer.innerHTML = ''; statsEl.innerHTML = ''; statusEl.textContent = '正在寻找最新的数据文件...';
+                const filters = { lonMin: parseFloat(document.getElementById('lon-min').value), lonMax: parseFloat(document.getElementById('lon-max').value), latMin: parseFloat(document.getElementById('lat-min').value), latMax: parseFloat(document.getElementById('lat-max').value), leadTimeMin: parseFloat(document.getElementById('lead-time-min').value), leadTimeMax: parseFloat(document.getElementById('lead-time-max').value) };
                 try {
                     const world = await fetch("https://unpkg.com/world-atlas@2/countries-110m.json").then(res => res.json());
                     const { fileUrl, fileName } = await findLatestFnv3File(statusEl);
                     statusEl.textContent = `已找到最新文件: ${fileName}，正在抓取和处理...`;
-
                     const proxyUrl = 'https://corsproxy.io/?';
-                    const csvText = await fetch(proxyUrl + encodeURIComponent(fileUrl)).then(res => {
-                        if (!res.ok) throw new Error(`无法抓取文件 ${fileName}`);
-                        return res.text();
-                    });
-
+                    const csvText = await fetch(proxyUrl + encodeURIComponent(fileUrl)).then(res => { if (!res.ok) throw new Error(`无法抓取文件 ${fileName}`); return res.text(); });
                     const tracks = processFnv3Csv(csvText, filters);
-
-                    if (tracks.size === 0) {
-                        statusEl.textContent = `在 ${fileName} 中未找到符合筛选条件的气旋路径。`;
-                        return;
-                    }
-
+                    if (tracks.size === 0) { statusEl.textContent = `在 ${fileName} 中未找到符合筛选条件的气旋路径。`; return; }
                     statusEl.textContent = `数据处理完成，正在绘制 ${tracks.size} 条路径...`;
                     mapContainer.style.display = 'block';
                     drawFnv3Map(mapContainer, world, tracks, fileName);
-                    
                     const avgMaxIntensity = calculateStats(tracks);
                     statsEl.textContent = `所有成员路径的平均最高强度：${avgMaxIntensity.toFixed(2)} 节`;
-
-                } catch (error) {
-                    console.error('FNV3工具出错:', error);
-                    statusEl.textContent = `错误: ${error.message}`;
-                }
+                } catch (error) { console.error('FNV3工具出错:', error); statusEl.textContent = `错误: ${error.message}`; }
             }
-
             async function findLatestFnv3File(statusEl) {
-                const proxyUrl = 'https://corsproxy.io/?';
-                let now = new Date();
-                now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
-
-                const baseUrl = 'https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/';
-
+                const proxyUrl = 'https://corsproxy.io/?'; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
+                const baseUrl = 'https://storage.googleapis.com/deepmind-weatherlab/cyclones/FNV3/ensemble/cyclogenesis/csv/';
                 for (let i = 0; i < 20; i++) {
-                    const year = now.getUTCFullYear();
-                    const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-                    const day = now.getUTCDate().toString().padStart(2, '0');
-                    const hour = now.getUTCHours().toString().padStart(2, '0');
-                    
-                    const fileName = `FNV3_${year}_${month}_${day}T${hour}_00_cyclogenesis.csv`;
-                    const fileUrl = baseUrl + fileName;
-                    
+                    const year = now.getUTCFullYear(), month = (now.getUTCMonth() + 1).toString().padStart(2, '0'), day = now.getUTCDate().toString().padStart(2, '0'), hour = now.getUTCHours().toString().padStart(2, '0');
+                    const fileName = `FNV3_${year}_${month}_${day}T${hour}_00_cyclogenesis.csv`, fileUrl = baseUrl + fileName;
                     if(statusEl) statusEl.textContent = `正在尝试: ${fileName}...`;
-
-                    try {
-                        const response = await fetch(proxyUrl + encodeURIComponent(fileUrl), { method: 'HEAD' });
-                        if (response.ok) {
-                            return { fileUrl, fileName };
-                        }
-                    } catch (e) {}
-                    
+                    try { const response = await fetch(proxyUrl + encodeURIComponent(fileUrl), { method: 'HEAD' }); if (response.ok) return { fileUrl, fileName }; } catch (e) {}
                     now.setUTCHours(now.getUTCHours() - 6);
                 }
                 throw new Error("在过去5天内未找到可用的FNV3数据文件。");
             }
-
             function processFnv3Csv(csvText, filters) {
-                const lines = csvText.split('\n');
-                let dataStartIndex = -1;
-                for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].includes('BEGIN DATA')) {
-                        dataStartIndex = i + 1;
-                        break;
-                    }
-                }
+                const lines = csvText.split('\n'); let dataStartIndex = -1;
+                for (let i = 0; i < lines.length; i++) { if (lines[i].includes('BEGIN DATA')) { dataStartIndex = i + 1; break; } }
                 if (dataStartIndex === -1) return new Map();
-
-                const dataLines = lines.slice(dataStartIndex).join('\n');
-                const data = d3.csvParse(dataLines);
-
-                const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), 
-                    sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])
-                ).flat();
-                
-                const selectedFirst = firstPoints.filter(p => 
-                    +p.lon >= filters.lonMin && +p.lon <= filters.lonMax &&
-                    +p.lat >= filters.latMin && +p.lat <= filters.latMax &&
-                    +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax
-                );
-
+                const dataLines = lines.slice(dataStartIndex).join('\n'), data = d3.csvParse(dataLines);
+                const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
+                const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                
                 const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
-
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
-            
             function calculateStats(tracks) {
-                let maxIntensities = [];
-                tracks.forEach(sample => {
-                    sample.forEach(track => {
-                        maxIntensities.push(d3.max(track, d => +d.maximum_sustained_wind_speed_knots));
-                    });
-                });
+                let maxIntensities = []; tracks.forEach(sample => { sample.forEach(track => { maxIntensities.push(d3.max(track, d => +d.maximum_sustained_wind_speed_knots)); }); });
                 return d3.mean(maxIntensities);
             }
-
             function drawFnv3Map(container, world, tracks, title) {
-                const width = container.clientWidth;
-                const height = width * (2 / 3);
-
-                const svg = d3.select(container).append("svg")
-                    .attr("width", width)
-                    .attr("height", height);
-
-                // 将经度统一到 0~360
-                function to360(lon) {
-                    return ((+lon % 360) + 360) % 360;
-                }
-
-                // 提取所有点坐标
-                const allPoints = Array.from(tracks.values()).flatMap(sample =>
-                    Array.from(sample.values()).flat().map(p => ({
-                        lon: to360(p.lon),
-                        lat: +p.lat,
-                        original: p
-                    }))
-                );
-
-                const trackGeoJSON = {
-                    type: "MultiPoint",
-                    coordinates: allPoints.map(p => [p.lon, p.lat])
-                };
-
-                // 投影设置，可选设置 center: [180, 0] 为太平洋中心地图
-                const projection = d3.geoMercator()
-                    .center([180, 0])  // 若希望以太平洋为中心可取消注释
-                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
-
+                const width = container.clientWidth, height = width * (2 / 3);
+                const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+                const allPoints = Array.from(tracks.values()).flatMap(sample => Array.from(sample.values()).flat());
+                const trackGeoJSON = { type: "MultiPoint", coordinates: allPoints.map(p => [+p.lon, +p.lat]) };
+                const projection = d3.geoMercator().fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
                 const pathGenerator = d3.geoPath().projection(projection);
-
-                // 背景（海洋）
-                svg.append("path")
-                    .attr("d", pathGenerator({ type: "Sphere" }))
-                    .attr("fill", "var(--map-ocean-color)");
-
-                // 经纬网
-                svg.append("path")
-                    .datum(d3.geoGraticule10())
-                    .attr("d", pathGenerator)
-                    .attr("fill", "none")
-                    .attr("stroke", "var(--map-grid-color)")
-                    .attr("stroke-width", 0.5)
-                    .attr("stroke-opacity", 0.5);
-
-                // 陆地边界
-                svg.append("path")
-                    .datum(topojson.feature(world, world.objects.countries))
-                    .attr("d", pathGenerator)
-                    .attr("fill", "var(--map-land-color)")
-                    .attr("stroke", "var(--map-grid-color)");
-
-                // 遍历所有路径并绘制
+                svg.append("path").attr("d", pathGenerator({type: "Sphere"})).attr("fill", "var(--map-ocean-color)");
+                svg.append("path").datum(d3.geoGraticule10()).attr("d", pathGenerator).attr("fill", "none").attr("stroke", "var(--map-grid-color)").attr("stroke-width", 0.5).attr("stroke-opacity", 0.5);
+                svg.append("path").datum(topojson.feature(world, world.objects.countries)).attr("d", pathGenerator).attr("fill", "var(--map-land-color)").attr("stroke", "var(--map-grid-color)");
                 tracks.forEach(sample => {
                     sample.forEach(track => {
-                        // 绘制路径线段
                         for (let i = 0; i < track.length - 1; i++) {
                             const start = track[i], end = track[i + 1];
-                            const lon1 = to360(start.lon), lon2 = to360(end.lon);
-                            const lat1 = +start.lat, lat2 = +end.lat;
-
-                            // 可选：跳过穿越全球线段
-                            if (Math.abs(lon1 - lon2) > 180) continue;
-
-                            const segment = {
-                                type: "LineString",
-                                coordinates: [[lon1, lat1], [lon2, lat2]]
-                            };
-
-                            svg.append("path")
-                                .datum(segment)
-                                .attr("d", pathGenerator)
-                                .attr("fill", "none")
-                                .attr("stroke", getColorByIntensity(+start.maximum_sustained_wind_speed_knots))
-                                .attr("stroke-width", 0.8);
+                            const segment = { type: "LineString", coordinates: [[+start.lon, +start.lat], [+end.lon, +end.lat]] };
+                            svg.append("path").datum(segment).attr("d", pathGenerator).attr("fill", "none").attr("stroke", getColorByIntensity(+start.maximum_sustained_wind_speed_knots)).attr("stroke-width", 0.8);
                         }
-
-                        // 绘制轨迹点
                         track.forEach(point => {
-                            const [px, py] = projection([to360(point.lon), +point.lat]);
-                            svg.append("circle")
-                                .attr("cx", px)
-                                .attr("cy", py)
-                                .attr("r", 1.5)
-                                .attr("fill", getColorByIntensity(+point.maximum_sustained_wind_speed_knots));
+                            const [px, py] = projection([+point.lon, +point.lat]);
+                            svg.append("circle").attr("cx", px).attr("cy", py).attr("r", 1.5).attr("fill", getColorByIntensity(+point.maximum_sustained_wind_speed_knots));
                         });
                     });
                 });
                 const match = title.match(/FNV3_(\d{4})_(\d{2})_(\d{2})T(\d{2})/);
                 const formattedTime = match ? `${match[1]}-${match[2]}-${match[3]} ${match[4]}` : title;
-                svg.append("text")
-                    .attr("x", width - 10)
-                    .attr("y", height - 5)
-                    .attr("text-anchor", "end")
-                    .attr("font-size", "10px")
-                    .attr("fill", "#666")
-                    .text(`${formattedTime} FNV3 Ensemble From GOOG @Enceladus`);
+                svg.append("text").attr("x", width - 10).attr("y", height - 5).attr("text-anchor", "end").attr("font-size", "10px").attr("fill", "#666").text(`${formattedTime} FNV3 Ensemble From GOOG @Enceladus`);
             }
-
             function getColorByIntensity(knots) {
-                if (knots > 137) return "#maroon";
-                if (knots > 112) return "#pink";
-                if (knots > 97) return "orangered";
-                if (knots > 82) return "darkgoldenrod";
-                if (knots > 62) return "lightyellow";
-                if (knots > 32) return "cyan";
-                if (knots > 23) return "lightblue";
-                return "darkgrey";
+                if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
             
-            // ... (Theme toggle logic remains the same)
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            if (themeToggle) {
+                const applyTheme = (theme) => {
+                    if (theme === 'dark') { body.classList.add('dark-mode'); themeToggle.textContent = '日间模式'; } else { body.classList.remove('dark-mode'); themeToggle.textContent = '黑夜模式'; }
+                };
+                themeToggle.addEventListener('click', () => {
+                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+                    applyTheme(newTheme);
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
+                });
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                applyTheme(currentTheme);
+            }
         })();
     </script>
 
 </body>
 </html>
+
+请将FNV3 TC Ensemble Path的地图投影改为太平洋为中心，而不是
