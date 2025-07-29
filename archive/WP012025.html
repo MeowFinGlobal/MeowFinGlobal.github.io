@@ -107,7 +107,7 @@
 
     <main class="container">
         <article class="article-card">
-            <h1 class="article-title">ENM评价存档: WP012025</h1>
+            <h1 class="article-title">ENM评价存档: WP012025 01</h1>
             <p class="article-meta">存档日期: <time datetime="2025-07-28">2025年07月28日</time></p>
             <div class="article-content">
                 <p>机器学习工具ENceladus Method对热带气旋 WP012025 的详细评价和分析...</p>
@@ -194,9 +194,9 @@ WP, 01, 2025061406, ENM, 50, ADT, 72, AIDT, 63, BST, 65
             // --- 新增: 从标题中提取气旋信息 ---
             const titleElement = document.querySelector('.article-title');
             const titleText = titleElement ? titleElement.textContent : '';
-            const match = titleText.match(/WP(\d{2})(\d{4})/);
-            const cycloneNumber = match ? match[1] : '01';
-            const cycloneYear = match ? match[2] : '2025';
+            const match = titleText.match(/WP\d{2}(\d{4})\s+(\d{2})/);
+            const cycloneYear = match ? match[1] : '2025';
+            const cycloneNumber = match ? match[2] : '01';
 
             const ctx = document.getElementById('cycloneChart');
             if (ctx) {
