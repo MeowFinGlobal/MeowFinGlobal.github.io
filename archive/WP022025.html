@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ENM评价存档 - WP022025 - Enceladus Blog</title>
+    <title>ENM评价存档 - WP012025 - Enceladus Blog</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <!-- 【修正】: 引入 Chart.js 库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -25,7 +24,6 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
         
-        /* --- 修正: 为背景图形的颜色变化添加平滑过渡 --- */
         body::before, body::after { 
             content: ''; 
             position: fixed; 
@@ -36,13 +34,12 @@
         body::before { 
             width: 50vw; 
             height: 50vw; 
-            background-color: var(--primary-color); /* 使用 background-color */
+            background-color: var(--primary-color);
             border-radius: 50%; 
             top: -20vw; 
             right: -20vw; 
             transform: var(--before-transform, translateY(0)); 
         }
-        /* --- 修正结束 --- */
 
         body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
@@ -61,7 +58,8 @@
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
         .chart-wrapper { position: relative; height: 400px; margin: 2rem 0; }
         .raw-data { background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; color: var(--text-muted); transition: all 0.3s ease; }
-            /* --- 新增: 图像显示区域样式 --- */
+        
+        /* --- 新增: 图像显示区域样式 --- */
         #image-display-wrapper {
             display: none; /* 默认隐藏 */
             margin-bottom: 2rem;
