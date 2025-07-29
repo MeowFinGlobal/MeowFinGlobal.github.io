@@ -261,9 +261,9 @@
 
                 let convertedSpeed;
                 if (heightKm < 0.7) {
-                    convertedSpeed = (0.68 + 0.1 * heightKm) * windSpeed;
-                } else {
                     convertedSpeed = (0.82 - 0.1 * heightKm) * windSpeed;
+                } else {
+                    convertedSpeed = (0.6975 + 0.075 * heightKm) * windSpeed;
                 }
 
                 detectedHeightOutput.textContent = heightKm.toFixed(2);
