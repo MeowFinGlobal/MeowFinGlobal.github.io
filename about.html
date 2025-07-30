@@ -377,19 +377,30 @@
                 return d3.mean(maxIntensities);
             }
             function drawFnv3Map(container, world, tracks, title) {
-                const width = container.clientWidth, height = width * (2 / 3);
+                const width = container.clientWidth;
+                const height = width * (2 / 3);
+                
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+
                 const allPoints = Array.from(tracks.values()).flatMap(sample => Array.from(sample.values()).flat());
+                
+                // --- 修正: 恢复自适应范围，并正确处理日界线 ---
                 const trackGeoJSON = { type: "MultiPoint", coordinates: allPoints.map(p => [+p.lon, +p.lat]) };
-                const projection = d3.geoMercator().fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
+                const projection = d3.geoMercator()
+                    .rotate([-180, 0]) // 关键: 先将投影中心移到太平洋
+                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON); // 然后让 D3 自动计算缩放和平移
+
                 const pathGenerator = d3.geoPath().projection(projection);
+
                 svg.append("path").attr("d", pathGenerator({type: "Sphere"})).attr("fill", "var(--map-ocean-color)");
                 svg.append("path").datum(d3.geoGraticule10()).attr("d", pathGenerator).attr("fill", "none").attr("stroke", "var(--map-grid-color)").attr("stroke-width", 0.5).attr("stroke-opacity", 0.5);
                 svg.append("path").datum(topojson.feature(world, world.objects.countries)).attr("d", pathGenerator).attr("fill", "var(--map-land-color)").attr("stroke", "var(--map-grid-color)");
+
                 tracks.forEach(sample => {
                     sample.forEach(track => {
                         for (let i = 0; i < track.length - 1; i++) {
-                            const start = track[i], end = track[i + 1];
+                            const start = track[i];
+                            const end = track[i + 1];
                             const segment = { type: "LineString", coordinates: [[+start.lon, +start.lat], [+end.lon, +end.lat]] };
                             svg.append("path").datum(segment).attr("d", pathGenerator).attr("fill", "none").attr("stroke", getColorByIntensity(+start.maximum_sustained_wind_speed_knots)).attr("stroke-width", 0.8);
                         }
@@ -403,6 +414,7 @@
                 const formattedTime = match ? `${match[1]}-${match[2]}-${match[3]} ${match[4]}` : title;
                 svg.append("text").attr("x", width - 10).attr("y", height - 5).attr("text-anchor", "end").attr("font-size", "10px").attr("fill", "#666").text(`${formattedTime} FNV3 Ensemble From GOOG @Enceladus`);
             }
+            
             function getColorByIntensity(knots) {
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
