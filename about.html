@@ -553,15 +553,11 @@
                         const polarizedProbs = polarize_probs(probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
-                        let distributionText = "\n  Probabilities (Top 5):\n";
-                        const probsWithClasses = polarizedProbs.map((prob, i) => ({ prob, className: class_ids[i] }));
-                        probsWithClasses.sort((a, b) => b.prob - a.prob);
-                        
                         let distributionText = "\n  Probabilities:\n";
                         polarizedProbs.forEach((prob, i) => {
                             const className = class_ids[i];
                             const percentage = (prob * 100).toFixed(1);
-                            distributionText += `    ${className} KT: ${percentage.padStart(5, ' ')}%\n`;
+                            distributionText += `    ${className}: ${percentage.padStart(5, ' ')}%\n`;
                         });
                         return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}KT\n${distributionText}\n----------------------------------------\n`;
                     } catch (e) {
