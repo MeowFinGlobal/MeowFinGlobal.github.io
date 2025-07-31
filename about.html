@@ -551,7 +551,7 @@
                         // --- 修正结束 ---
 
                         const final_probs = polarize_probs(raw_probs, temperature);  // 不再 log-exp
-                        const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
+                        const weighted_pred = final_probs.reduce((sum, p, i) => sum + p * pred_anchor[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
                         let distributionText = "\n  Probabilities:\n";
                         polarizedProbs.forEach((prob, i) => {
