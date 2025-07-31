@@ -557,11 +557,12 @@
                         const probsWithClasses = polarizedProbs.map((prob, i) => ({ prob, className: class_ids[i] }));
                         probsWithClasses.sort((a, b) => b.prob - a.prob);
                         
-                        for(let i = 0; i < 5 && i < probsWithClasses.length; i++) {
-                            const item = probsWithClasses[i];
-                            const percentage = (item.prob * 100).toFixed(1);
-                            distributionText += `    ${item.className} KT: ${percentage.padStart(5, ' ')}%\n`;
-                        }
+                        let distributionText = "\n  Probabilities:\n";
+                        polarizedProbs.forEach((prob, i) => {
+                            const className = class_ids[i];
+                            const percentage = (prob * 100).toFixed(1);
+                            distributionText += `    ${className} KT: ${percentage.padStart(5, ' ')}%\n`;
+                        });
                         return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}KT\n${distributionText}\n----------------------------------------\n`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
