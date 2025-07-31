@@ -440,7 +440,7 @@
             const temperature = 1.0;
             const pred_anchor = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
             const ci_anchor = [23, 30, 35, 45, 55, 65, 77, 90, 102, 115, 128, 142, 158, 180];
-            const MODEL_INPUT_SIZE = 224;
+            const MODEL_INPUT_SIZE = 512;
 
             const polarize_probs = (probs, temp) => {
                 const logits = probs.map(p => Math.log(p + 1e-12));
