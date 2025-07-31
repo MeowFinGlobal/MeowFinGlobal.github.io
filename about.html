@@ -554,7 +554,7 @@
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
 
-                        return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}`;
+                        return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)} KT`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
