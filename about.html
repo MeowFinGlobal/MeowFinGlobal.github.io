@@ -554,7 +554,7 @@
                         const weighted_pred = final_probs.reduce((sum, p, i) => sum + p * pred_anchor[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
                         let distributionText = "\n  Probabilities:\n";
-                        polarizedProbs.forEach((prob, i) => {
+                        polarize_probs.forEach((prob, i) => {
                             const className = class_ids[i];
                             const percentage = (prob * 100).toFixed(1);
                             distributionText += `    ${className}: ${percentage.padStart(5, ' ')}%\n`;
