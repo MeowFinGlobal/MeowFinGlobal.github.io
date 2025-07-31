@@ -559,7 +559,7 @@
                             const percentage = (prob * 100).toFixed(1);
                             distributionText += `    ${className}: ${percentage.padStart(5, ' ')}%\n`;
                         });
-                        return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}\n${distributionText}\n----------------------------------------\n`;
+                        return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}KT\n${distributionText}\n----------------------------------------\n`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
