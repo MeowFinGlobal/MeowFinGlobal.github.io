@@ -556,10 +556,10 @@
                         const results = await session.run(feeds);
                         const outputTensor = results.output0;
                         
+                        // --- 修正: 直接使用模型输出作为概率 ---
+                        // YOLOv8分类模型导出的ONNX已包含Softmax层
                         const probs = Array.from(outputTensor.data);
-                        const exp_probs = probs.map(Math.exp);
-                        const sum_exp_probs = exp_probs.reduce((a, b) => a + b, 0);
-                        const softmax_probs = exp_probs.map(p => p / sum_exp_probs);
+                        // --- 修正结束 ---
 
                         const polarizedProbs = polarize_probs(softmax_probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
