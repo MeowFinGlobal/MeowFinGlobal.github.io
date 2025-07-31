@@ -499,16 +499,25 @@
                             canvas.width = MODEL_INPUT_SIZE;
                             canvas.height = MODEL_INPUT_SIZE;
                             const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-                            const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+
+                            const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
+                            const newWidth = Math.round(img.width * ratio);
+                            const newHeight = Math.round(img.height * ratio);
+                            const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
+                            const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
+
+                            ctx.fillStyle = 'rgb(114, 114, 114)';
+                            ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                            ctx.drawImage(img, padX, padY, newWidth, newHeight);
                             
+                            const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
                             const { data } = imageData;
                             const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
                             
                             for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
-                                inputTensor[i] = data[i * 4] / 255.0; // R
-                                inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0; // G
-                                inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0; // B
+                                inputTensor[i] = data[i * 4] / 255.0;
+                                inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
+                                inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0;
                             }
                             resolve(inputTensor);
                         };
