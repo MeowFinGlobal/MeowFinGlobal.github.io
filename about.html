@@ -443,6 +443,147 @@
                 const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
                 applyTheme(currentTheme);
             }
+                        const runDiagnosisBtn = document.getElementById('run-diagnosis');
+            const imageUploadInput = document.getElementById('image-upload');
+            const diagnosisResultsEl = document.getElementById('diagnosis-results');
+            let session; // To hold the ONNX session
+
+            const class_ids = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+            const temperature = 1.0;
+            const pred_anchor = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+            const ci_anchor = [23, 30, 35, 45, 55, 65, 77, 90, 102, 115, 128, 142, 158, 180];
+            const MODEL_INPUT_SIZE = 224;
+
+            const polarize_probs = (probs, temp) => {
+                const logits = probs.map(p => Math.log(p + 1e-12));
+                const new_probs_unnormalized = logits.map(l => Math.exp(l / temp));
+                const sum = new_probs_unnormalized.reduce((a, b) => a + b, 0);
+                return new_probs_unnormalized.map(p => p / sum);
+            };
+            const linearInterpolate = (x, x_points, y_points) => {
+                if (x <= x_points[0]) return y_points[0];
+                if (x >= x_points[x_points.length - 1]) return y_points[y_points.length - 1];
+                let i = 1;
+                while (x > x_points[i]) i++;
+                const slope = (y_points[i] - y_points[i - 1]) / (x_points[i] - x_points[i - 1]);
+                return y_points[i - 1] + slope * (x - x_points[i - 1]);
+            };
+            const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
+
+            async function loadModel() {
+                try {
+                    session = await ort.InferenceSession.create('./epoch15.onnx');
+                    diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                    runDiagnosisBtn.disabled = false;
+                    runDiagnosisBtn.textContent = '开始分析';
+                } catch (e) {
+                    diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
+                    console.error(e);
+                }
+            }
+            // Load the model as soon as the tool is visible
+            const enmToolObserver = new MutationObserver((mutationsList, observer) => {
+                for(const mutation of mutationsList) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const enmCard = document.getElementById('enm-diagnosis');
+                        if (enmCard.style.display !== 'none' && !session) {
+                           loadModel();
+                        }
+                    }
+                }
+            });
+            const enmCard = document.getElementById('enm-diagnosis');
+            if(enmCard) {
+                 enmToolObserver.observe(enmCard, { attributes: true });
+                 // Initial load if it's the default active tab
+                 if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                     loadModel();
+                 }
+            }
+
+
+            async function preprocessImage(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = MODEL_INPUT_SIZE;
+                            canvas.height = MODEL_INPUT_SIZE;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                            const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                            
+                            const { data } = imageData;
+                            const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
+                            
+                            for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
+                                inputTensor[i] = data[i * 4] / 255.0;
+                                inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
+                                inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0;
+                            }
+                            resolve(inputTensor);
+                        };
+                        img.onerror = reject;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            async function runDiagnosis() {
+                const files = imageUploadInput.files;
+                if (!files || files.length === 0) {
+                    diagnosisResultsEl.textContent = '请先选择一个或多个图像文件。';
+                    return;
+                }
+                if (!session) {
+                    diagnosisResultsEl.textContent = '模型尚未加载完成，请稍候。';
+                    return;
+                }
+
+                runDiagnosisBtn.disabled = true;
+                runDiagnosisBtn.textContent = '分析中...';
+                diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
+                let resultsText = '\n按时间顺序的预测结果（含CI）：\n';
+
+                const analysisPromises = Array.from(files).map(async (file) => {
+                    try {
+                        const preprocessedData = await preprocessImage(file);
+                        const tensor = new ort.Tensor('float32', preprocessedData, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
+                        
+                        const feeds = { 'images': tensor };
+                        const results = await session.run(feeds);
+                        const outputTensor = results.output0;
+                        
+                        const probs = Array.from(outputTensor.data);
+                        const exp_probs = probs.map(Math.exp);
+                        const sum_exp_probs = exp_probs.reduce((a, b) => a + b, 0);
+                        const softmax_probs = exp_probs.map(p => p / sum_exp_probs);
+
+                        const polarizedProbs = polarize_probs(softmax_probs, temperature);
+                        const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
+                        const ci_value = pred_to_ci(weighted_pred);
+
+                        return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}`;
+                    } catch (e) {
+                        console.error(`处理 ${file.name} 时出错:`, e);
+                        return `${file.name}: 分析失败 - ${e.message}`;
+                    }
+                });
+                
+                const resolvedResults = await Promise.all(analysisPromises);
+                resultsText += resolvedResults.join('\n');
+
+                diagnosisResultsEl.textContent = resultsText;
+                runDiagnosisBtn.disabled = false;
+                runDiagnosisBtn.textContent = '开始分析';
+            }
+            if(runDiagnosisBtn) {
+                 runDiagnosisBtn.addEventListener('click', runDiagnosis);
+            }
         })();
     </script>
 
