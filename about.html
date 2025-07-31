@@ -443,10 +443,10 @@
             const MODEL_INPUT_SIZE = 512;
 
             const polarize_probs = (probs, temp) => {
-                const logits = probs.map(p => Math.log(p + 1e-12));
-                const new_probs_unnormalized = logits.map(l => Math.exp(l / temp));
-                const sum = new_probs_unnormalized.reduce((a, b) => a + b, 0);
-                return new_probs_unnormalized.map(p => p / sum);
+                if (temp === 1.0) return probs;
+                const scaled = probs.map(p => Math.pow(p, 1 / temp));
+                const sum = scaled.reduce((a, b) => a + b, 0);
+                return scaled.map(p => p / sum);
             };
             const linearInterpolate = (x, x_points, y_points) => {
                 if (x <= x_points[0]) return y_points[0];
