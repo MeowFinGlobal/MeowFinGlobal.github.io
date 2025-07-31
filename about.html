@@ -568,7 +568,7 @@
                         polarizedProbs.forEach((prob, i) => {
                             const className = class_ids[i];
                             const percentage = (prob * 100).toFixed(1);
-                            distributionText += `    ${className} KT: ${percentage.padStart(5, ' ')}%\n`;
+                            distributionText += `    ${className}: ${percentage.padStart(5, ' ')}%\n`;
 
                         });
                         return `${file.name}: pred=${weighted_pred.toFixed(2)}, CI=${ci_value.toFixed(1)}KT\n${distributionText}\n----------------------------------------\n`;
