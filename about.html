@@ -547,10 +547,10 @@
                         
                         // --- 修正: 直接使用模型输出作为概率 ---
                         // YOLOv8分类模型导出的ONNX已包含Softmax层
-                        const probs = Array.from(outputTensor.data);
+                        const raw_probs = Array.from(outputTensor.data);  // softmax 后输出
                         // --- 修正结束 ---
 
-                        const polarizedProbs = polarize_probs(probs, temperature);
+                        const final_probs = polarize_probs(raw_probs, temperature);  // 不再 log-exp
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
                         let distributionText = "\n  Probabilities:\n";
