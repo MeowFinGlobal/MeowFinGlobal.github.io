@@ -430,21 +430,7 @@
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
             
-            const themeToggle = document.getElementById('theme-toggle');
-            const body = document.body;
-            if (themeToggle) {
-                const applyTheme = (theme) => {
-                    if (theme === 'dark') { body.classList.add('dark-mode'); themeToggle.textContent = '日间模式'; } else { body.classList.remove('dark-mode'); themeToggle.textContent = '黑夜模式'; }
-                };
-                themeToggle.addEventListener('click', () => {
-                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
-                    applyTheme(newTheme);
-                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
-                });
-                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
-                applyTheme(currentTheme);
-            }
-                        const runDiagnosisBtn = document.getElementById('run-diagnosis');
+            const runDiagnosisBtn = document.getElementById('run-diagnosis');
             const imageUploadInput = document.getElementById('image-upload');
             const diagnosisResultsEl = document.getElementById('diagnosis-results');
             let session; // To hold the ONNX session
@@ -501,7 +487,6 @@
                      loadModel();
                  }
             }
-
 
             async function preprocessImage(file) {
                 return new Promise((resolve, reject) => {
@@ -584,6 +569,21 @@
             }
             if(runDiagnosisBtn) {
                  runDiagnosisBtn.addEventListener('click', runDiagnosis);
+            }
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            if (themeToggle) {
+                const applyTheme = (theme) => {
+                    if (theme === 'dark') { body.classList.add('dark-mode'); themeToggle.textContent = '日间模式'; } else { body.classList.remove('dark-mode'); themeToggle.textContent = '黑夜模式'; }
+                };
+                themeToggle.addEventListener('click', () => {
+                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+                    applyTheme(newTheme);
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
+                });
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                applyTheme(currentTheme);
             }
         })();
     </script>
