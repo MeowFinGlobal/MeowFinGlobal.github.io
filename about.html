@@ -490,11 +490,30 @@
                 return response;
             }
             async function loadModel() {
+                if (isModelLoaded || isLoadingModel) return;
+                isLoadingModel = true;
+                
+                diagnosisResultsEl.innerHTML = ''; // 清空之前的内容
+                const retryButton = document.createElement('button');
+                retryButton.textContent = '重新加载模型';
+                retryButton.className = 'btn-generate';
+                retryButton.style.display = 'none';
+                retryButton.onclick = loadModel;
+                diagnosisResultsEl.appendChild(retryButton);
+                
                 try {
+                    if (typeof ort === 'undefined') throw new Error("ONNX runtime library (ort) not loaded.");
+                    
+                    diagnosisResultsEl.insertAdjacentHTML('afterbegin', '<p id="load-status">正在加载模型...</p>');
+                    runDiagnosisBtn.disabled = true;
+                    runDiagnosisBtn.textContent = '加载模型中...';
+                    
                     session = await ort.InferenceSession.create('./epoch15.onnx');
-                    diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                    
+                    document.getElementById('load-status').textContent = '模型加载成功！请上传图片后点击分析按钮。';
                     runDiagnosisBtn.disabled = false;
                     runDiagnosisBtn.textContent = '开始分析';
+                    isModelLoaded = true;
                 } catch (e) {
                     diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
                     console.error(e);
