@@ -1,3 +1,8 @@
+Of course. I've added a progress bar to the "ENM TC Diagnosis" tool to provide visual feedback while the ONNX model is being downloaded and loaded.
+
+Here is the updated code:
+
+```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -74,9 +79,11 @@
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
         #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
+        
         /* --- Progress Bar Styles --- */
         .progress-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
         .progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.2s ease-in-out; }
+
         @media (max-width: 768px) { .toolbox-layout { flex-direction: column; } }
     </style>
 </head>
@@ -242,6 +249,9 @@
                         <button id="run-diagnosis" class="btn-generate" disabled>加载模型中...</button>
                         <button id="enm-help-btn" class="btn-help">?</button>
                     </div>
+                    <div id="model-progress-container" class="progress-container" style="display: none;">
+                         <div id="model-progress-bar" class="progress-bar"></div>
+                    </div>
                     <div id="diagnosis-results">请等待模型加载完成。</div>
                 </div>
 
@@ -256,8 +266,7 @@
     <div id="enm-help-overlay" class="modal-overlay" style="display: none;"></div>
     <div id="enm-help-modal" class="modal" style="display: none;">
         <button id="enm-help-close" class="modal-close">&times;</button>
-        <!-- 内容会由JS注入 -->
-    </div>
+        </div>
     
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/topojson@3"></script>
@@ -480,6 +489,12 @@
             const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
 
             async function loadModel() {
+                const runBtn = document.getElementById('run-diagnosis');
+                const resultsEl = document.getElementById('diagnosis-results');
+                const progressContainer = document.getElementById('model-progress-container');
+                const progressBar = document.getElementById('model-progress-bar');
+                const modelUrl = './epoch15.onnx';
+
                 try {
                     resultsEl.textContent = '开始下载模型...';
                     progressContainer.style.display = 'block';
@@ -534,24 +549,25 @@
                     console.error(e);
                 }
             }
+
             // Load the model as soon as the tool is visible
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
                 for(const mutation of mutationsList) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                         const enmCard = document.getElementById('enm-diagnosis');
                         if (enmCard.style.display !== 'none' && !session) {
-                           loadModel();
+                             loadModel();
                         }
                     }
                 }
             });
             const enmCard = document.getElementById('enm-diagnosis');
             if(enmCard) {
-                 enmToolObserver.observe(enmCard, { attributes: true });
-                 // Initial load if it's the default active tab
-                 if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
-                     loadModel();
-                 }
+                  enmToolObserver.observe(enmCard, { attributes: true });
+                  // Initial load if it's the default active tab
+                  if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                        loadModel();
+                  }
             }
 
             async function preprocessImage(file) {
@@ -619,16 +635,13 @@
                         const results = await session.run(feeds);
                         const outputTensor = results.output0;
                         
-                        // --- 修正: 直接使用模型输出作为概率 ---
-                        // YOLOv8分类模型导出的ONNX已包含Softmax层
-                        const probs = Array.from(outputTensor.data);  // softmax 后输出
-                        // --- 修正结束 ---
+                        // YOLOv8 classification model's exported ONNX already includes Softmax
+                        const probs = Array.from(outputTensor.data);
 
                         const polarizedProbs = polarize_probs(probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
 
-                        // --- 修正: 显示所有概率，并按强度排序 ---
                         let distributionText = "\n  Probabilities:\n";
                         polarizedProbs.forEach((prob, i) => {
                             const className = class_ids[i];
@@ -660,23 +673,23 @@
             
             if (enmHelpBtn) {
                 const helpContent = `
-                    <button id="enm-help-close" class="modal-close">&times;</button>
-                    <h3>工具简介</h3>
-                    <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
-                    <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
-                    <h3>使用说明</h3>
-                    <ol>
-                        <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
-                        <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
-                        <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
-                    </ol>
-                    <h3>注意事项 (Disclaimer)</h3>
-                    <ul>
-                        <li><strong>实验性项目</strong>：本工具目前为实验性项目，其结果仅供参考和研究。</li>
-                        <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
-                        <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，这种波动在低强度段比较明显。</li>
-                        <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
-                    </ul>
+                        <button id="enm-help-close" class="modal-close">&times;</button>
+                        <h3>工具简介</h3>
+                        <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
+                        <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
+                        <h3>使用说明</h3>
+                        <ol>
+                            <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
+                            <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
+                            <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
+                        </ol>
+                        <h3>注意事项 (Disclaimer)</h3>
+                        <ul>
+                            <li><strong>实验性项目</strong>：本工具目前为实验性项目，其结果仅供参考和研究。</li>
+                            <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
+                            <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，这种波动在低强度段比较明显。</li>
+                            <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
+                        </ul>
                 `;
                 enmHelpModal.innerHTML = helpContent;
                 
@@ -716,3 +729,4 @@
 
 </body>
 </html>
+```
