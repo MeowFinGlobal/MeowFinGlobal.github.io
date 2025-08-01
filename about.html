@@ -65,6 +65,7 @@
         .btn-help { flex-shrink: 0; background-color: var(--text-muted); color: var(--card-bg-color); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; }
         .btn-help:hover { background-color: var(--primary-color); transform: scale(1.1); }
         #diagnosis-results { margin-top: 1.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; white-space: pre-wrap; word-wrap: break-word; color: var(--text-muted); min-height: 100px; }
+        #retry-button { margin-top: 1rem; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; }
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--card-bg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
         .modal-close { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2.5rem; color: var(--text-muted); cursor: pointer; line-height: 1; }
@@ -476,7 +477,18 @@
                 return y_points[i - 1] + slope * (x - x_points[i - 1]);
             };
             const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
-
+            // --- 修正: 引入带超时的fetch ---
+            async function fetchWithTimeout(resource, options = {}) {
+                const { timeout = 30000 } = options; // 30秒超时
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), timeout);
+                const response = await fetch(resource, {
+                    ...options,
+                    signal: controller.signal  
+                });
+                clearTimeout(id);
+                return response;
+            }
             async function loadModel() {
                 try {
                     session = await ort.InferenceSession.create('./epoch15.onnx');
