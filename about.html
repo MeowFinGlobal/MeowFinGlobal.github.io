@@ -74,7 +74,9 @@
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
         #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
-
+        /* --- Progress Bar Styles --- */
+        .progress-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.2s ease-in-out; }
         @media (max-width: 768px) { .toolbox-layout { flex-direction: column; } }
     </style>
 </head>
@@ -479,12 +481,56 @@
 
             async function loadModel() {
                 try {
-                    session = await ort.InferenceSession.create('./epoch15.onnx');
-                    diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                    runDiagnosisBtn.disabled = false;
-                    runDiagnosisBtn.textContent = '开始分析';
+                    resultsEl.textContent = '开始下载模型...';
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+
+                    const response = await fetch(modelUrl);
+                    if (!response.ok) {
+                        throw new Error(`网络响应错误: ${response.statusText}`);
+                    }
+
+                    const contentLength = response.headers.get('content-length');
+                    if (!contentLength) {
+                        console.warn('无法获取Content-Length，无法显示下载进度。');
+                        const modelBuffer = await response.arrayBuffer();
+                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
+                        session = await ort.InferenceSession.create(modelBuffer);
+                    } else {
+                        const total = parseInt(contentLength, 10);
+                        let loaded = 0;
+                        const reader = response.body.getReader();
+                        const chunks = [];
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(value);
+                            loaded += value.length;
+                            const progress = (loaded / total) * 100;
+                            progressBar.style.width = `${progress.toFixed(2)}%`;
+                        }
+
+                        const modelBuffer = new Uint8Array(loaded).buffer;
+                        const view = new Uint8Array(modelBuffer);
+                        let offset = 0;
+                        for (const chunk of chunks) {
+                            view.set(chunk, offset);
+                            offset += chunk.length;
+                        }
+
+                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
+                        session = await ort.InferenceSession.create(modelBuffer);
+                    }
+
+                    resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                    runBtn.disabled = false;
+                    runBtn.textContent = '开始分析';
+                    setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
+
                 } catch (e) {
-                    diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
+                    resultsEl.textContent = `模型加载失败: ${e.message}。`;
+                    progressContainer.style.display = 'none';
                     console.error(e);
                 }
             }
