@@ -49,7 +49,9 @@
                 if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
                     document.body.classList.add('dark-mode');
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error("无法访问 localStorage 来设置初始主题:", e);
+            }
         })();
     </script>
     
@@ -148,6 +150,7 @@
                     applyTheme(newTheme);
                     try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
                 });
+                // 初始主题的设置已由页面顶部的脚本处理，这里只需确保按钮文字正确
                 const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
                 applyTheme(currentTheme);
             }
