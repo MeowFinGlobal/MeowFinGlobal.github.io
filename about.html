@@ -622,20 +622,14 @@
                     <ol>
                         <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
                         <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
-                        <li><strong>查看结果</strong>：工具会输出以下关键信息：
-                            <ul>
-                                <li><strong>预测强度 (pred)</strong>：模型根据云图特征计算出的最可能风速值（单位：KT）。</li>
-                                <li><strong>CI 值</strong>: 根据预测强度换算出的CI-number。</li>
-                                <li><strong>概率分布</strong>: 模型对各个强度等级的“信心”分布，让您了解结果的确定性。</li>
-                            </ul>
-                        </li>
+                        <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
                     </ol>
                     <h3>注意事项 (Disclaimer)</h3>
                     <ul>
                         <li><strong>实验性项目</strong>：本工具目前为实验性项目，其结果仅供参考和研究。</li>
-                        <li><strong>数据源敏感性</strong>：模型主要使用日本气象厅（JMA）的卫星图像进行训练，使用其他来源的云图可能会引入未知误差。</li>
-                        <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，建议结合多张连续云图的分析结果进行综合判断。</li>
-                        <li><strong>环境干扰</strong>：当图像中存在其他天气系统（如另一个气旋、强冷涡等）干扰时，结果可能出现偏差。</li>
+                        <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
+                        <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，这种波动在低强度段比较明显。</li>
+                        <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
                     </ul>
                 `;
                 enmHelpModal.innerHTML = helpContent;
