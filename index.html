@@ -8,46 +8,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        /* --- 默认 (白天) 模式颜色 --- */
         :root {
-            --bg-color: #f8f9fa;
-            --text-color: #212529;
-            --primary-color: #4a90e2;
-            --secondary-color: #f5a623;
-            --card-bg-color: #ffffff;
-            --border-color: #dee2e6;
-            --header-bg: #2c3e50;
-            --header-text: #ecf0f1;
-            --text-muted: #6c757d;
-            --card-shadow: rgba(0,0,0,0.05);
+            --bg-color: #f8f9fa; --text-color: #212529; --primary-color: #4a90e2; --secondary-color: #f5a623;
+            --card-bg-color: #ffffff; --border-color: #dee2e6; --header-bg: #2c3e50; --header-text: #ecf0f1;
+            --text-muted: #6c757d; --card-shadow: rgba(0,0,0,0.05);
         }
-
-        /* --- 黑夜模式下的颜色 --- */
         body.dark-mode {
-            --bg-color: #121212;
-            --text-color: #e0e0e0;
-            --primary-color: #58a6ff;
-            --secondary-color: #f7b731;
-            --card-bg-color: #1e1e1e;
-            --border-color: #333;
-            --header-bg: #1a202c;
-            --header-text: #e2e8f0;
-            --text-muted: #a0aec0;
-            --card-shadow: rgba(0,0,0,0.2);
+            --bg-color: #121212; --text-color: #e0e0e0; --primary-color: #58a6ff; --secondary-color: #f7b731;
+            --card-bg-color: #1e1e1e; --border-color: #333; --header-bg: #1a202c; --header-text: #e2e8f0;
+            --text-muted: #a0aec0; --card-shadow: rgba(0,0,0,0.2);
         }
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            font-family: 'Inter', 'Noto Sans SC', sans-serif; 
-            background-color: var(--bg-color); 
-            color: var(--text-color); 
-            line-height: 1.7; 
-            overflow-x: hidden; 
-            position: relative;
-            transition: background-color 0.3s, color 0.3s;
-        }
-        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out; }
-        body::before { width: 50vw; height: 50vw; background: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
+        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out, background-color 0.3s; }
+        body::before { width: 50vw; height: 50vw; background-color: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
         body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         .site-header { background-color: var(--header-bg); color: var(--header-text); padding: 2rem 1rem; text-align: center; margin-bottom: 3rem; border-bottom: 5px solid var(--primary-color); position: relative; overflow: hidden; transition: background-color 0.3s; }
@@ -65,39 +39,23 @@
         .post-content p { margin-bottom: 1rem; }
         .post-content p:last-child { margin-bottom: 0; }
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
-        
-        #theme-toggle {
-            background: none;
-            color: var(--header-text);
-            border: 1px solid var(--header-text);
-            padding: 6px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-family: inherit;
-            font-weight: 300;
-            margin-left: 15px;
-            display: inline-block;
-            opacity: 0.8;
-            transition: all 0.3s ease;
-        }
-        #theme-toggle:hover {
-            color: #fff;
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            opacity: 1;
-            transform: translateY(-3px);
-        }
-
-        @media (max-width: 768px) {
-            .site-title { font-size: 2rem; }
-            .post-card { padding: 1.5rem; }
-            .post-title { font-size: 1.5rem; }
-            #theme-toggle { margin-top: 1rem; }
-        }
+        #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
+        #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
+        @media (max-width: 768px) { .site-title { font-size: 2rem; } .post-card { padding: 1.5rem; } .post-title { font-size: 1.5rem; } #theme-toggle { margin-top: 1rem; } }
     </style>
 </head>
 <body>
+    <script>
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <header class="site-header">
         <div class="container">
@@ -114,6 +72,14 @@
 
     <main class="container">
         
+        <article class="post-card">
+            <h2 class="post-title"><a href="./artcles/article2.html">猫猫经济学：泡沫、杠杆与崩盘</a></h2>
+            <p class="post-meta">发布于 <time datetime="2025-08-01">2025年8月1日</time></p>
+            <div class="post-content">
+                <p>在遥远的DSST-9086 b，有一种广为流传的投资方式：买猫，养猫，传猫。这不是慈善，也不是爱心，是生意。每只猫，都标着价格，且几乎每只猫在交易时都涨价了。他们的官方货币是猫草，最初花10棵猫草买来的猫，三天后就能卖出12棵，半个月后或许能换来20棵...</p>
+            </div>
+        </article>
+
         <article class="post-card">
             <h2 class="post-title"><a href="./article1.html">论多大的星球才能维持大气层</a></h2>
             <p class="post-meta">发布于 <time datetime="2025-07-28">2025年7月28日</time></p>
@@ -139,19 +105,13 @@
 
     <script>
         (function() {
-            // 页面滚动时的背景视差效果
-            window.addEventListener('scroll', function() {
-                window.requestAnimationFrame(function() {
-                    const scrollY = window.scrollY;
-                    document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
-                    document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
-                });
-            });
-
-            // --- 黑夜模式切换逻辑 ---
+            window.addEventListener('scroll', () => window.requestAnimationFrame(() => {
+                const scrollY = window.scrollY;
+                document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+                document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+            }));
             const themeToggle = document.getElementById('theme-toggle');
             const body = document.body;
-            
             if (themeToggle) {
                 const applyTheme = (theme) => {
                     if (theme === 'dark') {
@@ -162,31 +122,13 @@
                         themeToggle.textContent = '黑夜模式';
                     }
                 };
-
                 themeToggle.addEventListener('click', () => {
-                    const isDarkMode = body.classList.contains('dark-mode');
-                    const newTheme = isDarkMode ? 'light' : 'dark';
+                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
                     applyTheme(newTheme);
-                    try {
-                        localStorage.setItem('theme', newTheme);
-                    } catch (e) {
-                        console.error("无法访问 localStorage:", e);
-                    }
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
                 });
-
-                let initialTheme = 'light';
-                try {
-                    const savedTheme = localStorage.getItem('theme');
-                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    if (savedTheme) {
-                        initialTheme = savedTheme;
-                    } else if (prefersDark) {
-                        initialTheme = 'dark';
-                    }
-                } catch (e) {
-                    console.error("无法访问 localStorage:", e);
-                }
-                applyTheme(initialTheme);
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                applyTheme(currentTheme);
             }
         })();
     </script>
