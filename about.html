@@ -65,6 +65,9 @@
         .btn-help { flex-shrink: 0; background-color: var(--text-muted); color: var(--card-bg-color); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; }
         .btn-help:hover { background-color: var(--primary-color); transform: scale(1.1); }
         #diagnosis-results { margin-top: 1.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; white-space: pre-wrap; word-wrap: break-word; color: var(--text-muted); min-height: 100px; }
+        #progress-bar-container { display: none; width: 100%; background-color: var(--border-color); border-radius: 5px; margin-top: 1rem; height: 10px; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); border-radius: 5px; transition: width 0.2s; }
+        #retry-button { margin-top: 1rem; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; }
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--card-bg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
         .modal-close { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2.5rem; color: var(--text-muted); cursor: pointer; line-height: 1; }
@@ -230,7 +233,7 @@
                     <div id="fnv3-stats" style="margin-top: 1rem; font-size: 0.9rem;"></div>
                 </div>
 
-                <div id="enm-diagnosis" class="tool-card">
+                <div id="enm-diagnosis" class="tool-card" style="display: none;">
                     <h2 class="tool-title">ENM TC Diagnosis v0.114514</h2>
                     <div class="form-group">
                         <label for="image-upload">上传热带气旋图像 (可多选)</label>
@@ -239,6 +242,9 @@
                     <div class="button-group">
                         <button id="run-diagnosis" class="btn-generate" disabled>加载模型中...</button>
                         <button id="enm-help-btn" class="btn-help">?</button>
+                    </div>
+                    <div id="progress-bar-container">
+                        <div id="progress-bar"></div>
                     </div>
                     <div id="diagnosis-results">请等待模型加载完成。</div>
                 </div>
@@ -477,35 +483,103 @@
             };
             const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
 
-            async function loadModel() {
+            async function fetchWithTimeout(resource, options = {}) {
+                const { timeout = 60000, onProgress } = options; // 60秒超时
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), timeout);
+
                 try {
-                    session = await ort.InferenceSession.create('./epoch15.onnx');
-                    diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                    runDiagnosisBtn.disabled = false;
-                    runDiagnosisBtn.textContent = '开始分析';
-                } catch (e) {
-                    diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
-                    console.error(e);
-                }
-            }
-            // Load the model as soon as the tool is visible
-            const enmToolObserver = new MutationObserver((mutationsList, observer) => {
-                for(const mutation of mutationsList) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                        const enmCard = document.getElementById('enm-diagnosis');
-                        if (enmCard.style.display !== 'none' && !session) {
-                           loadModel();
+                    const response = await fetch(resource, { ...options, signal: controller.signal });
+                    if (!response.ok) throw new Error(`网络响应错误 (Status: ${response.status})`);
+                    
+                    if (!onProgress || !response.body) return await response.blob();
+
+                    const reader = response.body.getReader();
+                    const contentLength = +response.headers.get('Content-Length');
+                    let receivedLength = 0;
+                    let chunks = [];
+                    
+                    while(true) {
+                        const {done, value} = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        if (contentLength) {
+                            onProgress(receivedLength, contentLength);
                         }
                     }
+                    return new Blob(chunks);
+                } catch (error) {
+                    clearTimeout(id);
+                    if (error.name === 'AbortError') {
+                        throw new Error('请求超时，请检查您的网络连接。');
+                    }
+                    throw error;
                 }
-            });
-            const enmCard = document.getElementById('enm-diagnosis');
-            if(enmCard) {
-                 enmToolObserver.observe(enmCard, { attributes: true });
-                 // Initial load if it's the default active tab
-                 if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
-                     loadModel();
-                 }
+            }
+
+            async function loadModel() {
+                if (isModelLoaded || isLoadingModel) return;
+                isLoadingModel = true;
+                
+                diagnosisResultsEl.innerHTML = '';
+                const statusP = document.createElement('p');
+                diagnosisResultsEl.appendChild(statusP);
+
+                const retryButton = document.createElement('button');
+                retryButton.textContent = '重新加载模型';
+                retryButton.className = 'btn-generate';
+                retryButton.style.display = 'none';
+                retryButton.onclick = loadModel;
+                diagnosisResultsEl.appendChild(retryButton);
+
+                try {
+                    if (typeof ort === 'undefined') throw new Error("ONNX runtime library (ort) not loaded.");
+                    
+                    statusP.textContent = '准备下载AI模型...';
+                    runDiagnosisBtn.disabled = true;
+                    runDiagnosisBtn.textContent = '加载模型中...';
+                    progressBarContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+
+                    const modelUrl = './epoch15.onnx';
+                    const onProgress = (received, total) => {
+                        const percentage = (received / total) * 100;
+                        progressBar.style.width = `${percentage}%`;
+                        statusP.textContent = `正在下载模型... ${Math.round(percentage)}%`;
+                    };
+
+                    const blob = await fetchWithTimeout(modelUrl, { onProgress });
+                    const buffer = await blob.arrayBuffer();
+                    
+                    statusP.textContent = '模型下载完成，正在初始化...';
+                    session = await ort.InferenceSession.create(buffer);
+                    
+                    statusP.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                    runDiagnosisBtn.disabled = false;
+                    runDiagnosisBtn.textContent = '开始分析';
+                    progressBarContainer.style.display = 'none';
+                    isModelLoaded = true;
+
+                } catch (e) {
+                    statusP.textContent = `模型加载失败: ${e.message}`;
+                    retryButton.style.display = 'block';
+                    progressBarContainer.style.display = 'none';
+                    console.error(e);
+                } finally {
+                    isLoadingModel = false;
+                }
+            }
+            
+            if (enmToolLink) {
+                enmToolLink.addEventListener('click', () => {
+                    if (!isModelLoaded) {
+                        loadModel();
+                    }
+                });
+            }
+            if (document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                loadModel();
             }
 
             async function preprocessImage(file) {
