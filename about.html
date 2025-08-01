@@ -479,64 +479,102 @@
             const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
             // --- 修正: 引入带超时的fetch ---
             async function fetchWithTimeout(resource, options = {}) {
-                const { timeout = 30000 } = options; // 30秒超时
+                const { timeout = 60000, onProgress } = options; // 60秒超时
                 const controller = new AbortController();
                 const id = setTimeout(() => controller.abort(), timeout);
-                const response = await fetch(resource, {
-                    ...options,
-                    signal: controller.signal  
-                });
-                clearTimeout(id);
-                return response;
+
+                try {
+                    const response = await fetch(resource, { ...options, signal: controller.signal });
+                    if (!response.ok) throw new Error(`网络响应错误 (Status: ${response.status})`);
+                    
+                    if (!onProgress) return response;
+
+                    const reader = response.body.getReader();
+                    const contentLength = +response.headers.get('Content-Length');
+                    let receivedLength = 0;
+                    let chunks = [];
+                    
+                    while(true) {
+                        const {done, value} = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        if (contentLength) {
+                            onProgress(receivedLength, contentLength);
+                        }
+                    }
+                    return new Blob(chunks);
+                } catch (error) {
+                    clearTimeout(id);
+                    if (error.name === 'AbortError') {
+                        throw new Error('请求超时，请检查您的网络连接。');
+                    }
+                    throw error;
+                }
             }
+
             async function loadModel() {
                 if (isModelLoaded || isLoadingModel) return;
                 isLoadingModel = true;
                 
-                diagnosisResultsEl.innerHTML = ''; // 清空之前的内容
+                diagnosisResultsEl.innerHTML = '';
+                const statusP = document.createElement('p');
+                diagnosisResultsEl.appendChild(statusP);
+
                 const retryButton = document.createElement('button');
                 retryButton.textContent = '重新加载模型';
                 retryButton.className = 'btn-generate';
                 retryButton.style.display = 'none';
                 retryButton.onclick = loadModel;
                 diagnosisResultsEl.appendChild(retryButton);
-                
+
                 try {
                     if (typeof ort === 'undefined') throw new Error("ONNX runtime library (ort) not loaded.");
                     
-                    diagnosisResultsEl.insertAdjacentHTML('afterbegin', '<p id="load-status">正在加载模型...</p>');
+                    statusP.textContent = '准备下载AI模型...';
                     runDiagnosisBtn.disabled = true;
                     runDiagnosisBtn.textContent = '加载模型中...';
+                    progressBarContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+
+                    const modelUrl = './epoch15.onnx';
+                    const onProgress = (received, total) => {
+                        const percentage = (received / total) * 100;
+                        progressBar.style.width = `${percentage}%`;
+                        statusP.textContent = `正在下载模型... ${Math.round(percentage)}%`;
+                    };
+
+                    const blob = await fetchWithTimeout(modelUrl, { onProgress });
+                    const buffer = await blob.arrayBuffer();
                     
-                    session = await ort.InferenceSession.create('./epoch15.onnx');
+                    statusP.textContent = '模型下载完成，正在初始化...';
+                    session = await ort.InferenceSession.create(buffer);
                     
-                    document.getElementById('load-status').textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                    statusP.textContent = '模型加载成功！请上传图片后点击分析按钮。';
                     runDiagnosisBtn.disabled = false;
                     runDiagnosisBtn.textContent = '开始分析';
+                    progressBarContainer.style.display = 'none';
                     isModelLoaded = true;
+
                 } catch (e) {
-                    diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
+                    statusP.textContent = `模型加载失败: ${e.message}`;
+                    retryButton.style.display = 'block';
+                    progressBarContainer.style.display = 'none';
                     console.error(e);
+                } finally {
+                    isLoadingModel = false;
                 }
             }
-            // Load the model as soon as the tool is visible
-            const enmToolObserver = new MutationObserver((mutationsList, observer) => {
-                for(const mutation of mutationsList) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                        const enmCard = document.getElementById('enm-diagnosis');
-                        if (enmCard.style.display !== 'none' && !session) {
-                           loadModel();
-                        }
+            
+            if (enmToolLink) {
+                enmToolLink.addEventListener('click', () => {
+                    if (!isModelLoaded) {
+                        loadModel();
                     }
-                }
-            });
-            const enmCard = document.getElementById('enm-diagnosis');
-            if(enmCard) {
-                 enmToolObserver.observe(enmCard, { attributes: true });
-                 // Initial load if it's the default active tab
-                 if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
-                     loadModel();
-                 }
+                });
+            }
+            if (document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                loadModel();
             }
 
             async function preprocessImage(file) {
