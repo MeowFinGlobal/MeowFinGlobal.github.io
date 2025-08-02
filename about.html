@@ -634,7 +634,7 @@
                 runDiagnosisBtn.disabled = true;
                 runDiagnosisBtn.textContent = '分析中...';
                 diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
-                let resultsText = '\n按时间顺序的推理结果：';
+                let resultsText = '按时间顺序的推理结果：';
 
                 const analysisPromises = Array.from(files).map(async (file) => {
                     try {
