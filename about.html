@@ -634,7 +634,7 @@
                 runDiagnosisBtn.disabled = true;
                 runDiagnosisBtn.textContent = '分析中...';
                 diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
-                let resultsText = '\n按时间顺序的推理结果：\n';
+                let resultsText = '\n按时间顺序的推理结果：';
 
                 const analysisPromises = Array.from(files).map(async (file) => {
                     try {
@@ -659,7 +659,7 @@
                             distributionText += `     ${className}: ${percentage.padStart(5, ' ')}%\n`;
 
                         });
-                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n\n`;
+                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
