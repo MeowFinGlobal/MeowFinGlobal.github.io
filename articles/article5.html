@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宇宙星系和热带气旋的异曲同工之妙 - Enceladus Blog</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8f9fa; --text-color: #212529; --primary-color: #4a90e2; --secondary-color: #f5a623;
+            --card-bg-color: #ffffff; --border-color: #dee2e6; --header-bg: #2c3e50; --header-text: #ecf0f1;
+            --text-muted: #6c757d; --card-shadow: rgba(0,0,0,0.05); --article-title-color: #333;
+        }
+        body.dark-mode {
+            --bg-color: #121212; --text-color: #e0e0e0; --primary-color: #58a6ff; --secondary-color: #f7b731;
+            --card-bg-color: #1e1e1e; --border-color: #333; --header-bg: #1a202c; --header-text: #e2e8f0;
+            --text-muted: #a0aec0; --card-shadow: rgba(0,0,0,0.2); --article-title-color: #f0f0f0;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
+        body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out, background-color 0.3s; }
+        body::before { width: 50vw; height: 50vw; background-color: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
+        body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .site-header { background-color: var(--header-bg); color: var(--header-text); padding: 2rem 1rem; text-align: center; margin-bottom: 3rem; border-bottom: 5px solid var(--primary-color); position: relative; overflow: hidden; transition: background-color 0.3s; }
+        .site-header::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent); background-size: 40px 40px; z-index: 0; }
+        .site-title { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; position: relative; z-index: 1; }
+        .site-nav { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
+        .site-nav a { color: var(--header-text); text-decoration: none; margin: 0 15px; font-weight: 300; transition: all 0.3s ease; opacity: 0.8; display: inline-block; }
+        .site-nav a:hover { color: #fff; opacity: 1; transform: translateY(-3px); }
+        .article-card { background-color: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 2.5rem; padding: 2.5rem; box-shadow: 0 4px 15px var(--card-shadow); transition: all 0.3s ease; }
+        .article-title { font-size: 2.2rem; margin-bottom: 0.75rem; line-height: 1.3; color: var(--article-title-color); }
+        .article-meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; transition: all 0.3s ease; }
+        .article-content p { margin-bottom: 1.5rem; font-size: 1.1rem; }
+        .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
+        #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
+        #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
+    </style>
+</head>
+<body>
+    <script>
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch (e) {
+                console.error("无法访问 localStorage 来设置初始主题:", e);
+            }
+        })();
+    </script>
+    
+    <header class="site-header">
+        <div class="container">
+            <h1 class="site-title">Enceladus的非财经空间</h1>
+            <nav class="site-nav">
+                <a href="../index.html">首页</a>
+                <a href="../about.html">工具</a>
+                <a href="../archive.html">归档</a>
+                <a href="../realtime.html">实时</a>
+                <button id="theme-toggle">切换模式</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <article class="article-card">
+            <h1 class="article-title">宇宙星系和热带气旋的异曲同工之妙</h1>
+            <p class="article-meta">发布于 <time datetime="2025-08-03">2025年8月3日</time></p>
+            <div class="article-content">
+                <img src="misc_1.png" alt="宇宙星系和热带气旋的异曲同工之妙" style="width: 100%; max-width: 600px; display: block; margin: 0 auto 1.5rem auto; border-radius: 8px;">
+                <p>在浩瀚的知识图景中，有些连接看似天马行空，却揭示了宇宙深层的秩序与和谐。将一个横跨十万光年的螺旋星系，与一个在地球海洋上肆虐的热带气旋并列，似乎是风马牛不相及。然而，当我们从太空的视角凝视它们时，一种惊人的相似性便浮现出来——它们都是宇宙中壮丽的螺旋。</p>
+                <p>这仅仅是巧合吗？还是说，在驱动恒星亿万年运转的法则与主导大气数周翻腾的规律之间，存在着某种共通的“宇宙语言”？答案，远比一个简单的“是”或“否”要迷人得多。</p>
+                <h2>惊人一致的螺旋之舞</h2>
+                <p>最直观的相似点，无疑是它们的外形。</p>
+                <p>一个典型的螺旋星系，如我们的邻居仙女座星系，拥有一个明亮的核心（核球），数条巨大的旋臂从中伸展出来，盘旋缠绕，其中点缀着亿万颗恒星、气体和尘埃。而一个成熟的热带气旋（在西北太平洋我们称之为“台风”，在东北太平洋和北大西洋则为“飓风”），同样拥有一个清晰的核心（风眼），外围是密集的云墙和螺旋雨带，以惊人的力量向中心汇聚。</p>
+                <p>从哈勃望远镜拍摄的星系深空场，到气象卫星传回的地球云图，这种螺旋结构反复出现，仿佛是宇宙在不同尺度上谱写的一首重复的旋律。</p>
+                <h2>旋转的动力学核心</h2>
+                <p>这种外形的相似，源于内在动力学机制的共通性。两者本质上都是一个巨大的、围绕中心旋转的系统，并且都遵循一条黄金定律——角动量守恒。</p>
+                <p>我们可以想象一个花样滑冰运动员的旋转动作：当她将手臂收回靠近身体时，她的旋转速度会急剧加快。这就是角动量守恒的直观体现。</p>
+                <p>在星系中：星系由巨大的原始气体云在自身引力下坍缩而成。这团气体云在形成之初，哪怕只有极其微弱的初始旋转，随着物质不断向中心聚集，其旋转速度必然会越来越快。最终，在引力与离心力的平衡下，形成了稳定的中央核球和扁平的星系盘。</p>
+                <p>热带气旋是地球上的“热力发动机”。当热带海面的暖湿空气上升，在中心形成一个强大的低压区。周围的空气为了填补这个“空缺”，会从四面八方向中心涌入。在地球自转产生的科里奥利力（地转偏向力）影响下，这些内流的空气会发生偏转，形成一个逆时针（北半球）或顺时针（南半球）旋转的气旋式环流。空气越靠近中心，旋转速度就越快，形成了风速最强的眼墙。</p>
+                <p>因此，无论是被引力拉向超大质量黑洞的星际物质，还是被压强差吸向风眼的空气，它们都遵循着角动量守恒这一宇宙级的“交通规则”，最终形成了宏伟的螺旋结构。</p>
+                <h2>旋转的螺旋之臂</h2>
+                <p>虽然外形相似，但星系的旋臂与气旋的雨带在本质上却有所不同，这也恰恰反映了它们所处环境的差异。</p>
+                <p>星系旋臂是“密度波”，它更像是一个交通堵塞区域。星系的物质（恒星和气体）并非永久地固定在旋臂上，而是会运动着穿过这片区域。当它们进入旋臂这个“堵车地段”时，速度减慢，密度增高。高密度的气体云被压缩，从而触发了新恒星的诞生。这些年轻、明亮、炽热的蓝色恒星使得旋臂在照片上格外耀眼。</p>
+                <p>气旋雨带是真实的“物质带”，它们是看得见摸得着的结构，是由强烈的对流活动形成的雷暴带。这些雨带携带着巨大的水汽和能量，螺旋式地卷入风眼，是气旋系统中降雨最集中的区域。</p>
+                <p>可以说，星系的旋臂是引力谱写的“星辰诞生之序曲”，而气旋的雨带则是大气谱写的“能量输送之乐章”。</p>
+                <p class="conclusion">啊哈，物理就是喜欢在不同的尺度下重复同样的原理。</p>
+            </div>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2025 Enceladus. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        (function() {
+            window.addEventListener('scroll', () => window.requestAnimationFrame(() => {
+                const scrollY = window.scrollY;
+                document.body.style.setProperty('--before-transform', `translateY(${scrollY * 0.1}px)`);
+                document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
+            }));
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            if (themeToggle) {
+                const applyTheme = (theme) => {
+                    if (theme === 'dark') {
+                        body.classList.add('dark-mode');
+                        themeToggle.textContent = '日间模式';
+                    } else {
+                        body.classList.remove('dark-mode');
+                        themeToggle.textContent = '黑夜模式';
+                    }
+                };
+                themeToggle.addEventListener('click', () => {
+                    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+                    applyTheme(newTheme);
+                    try { localStorage.setItem('theme', newTheme); } catch (e) { console.error("无法访问 localStorage:", e); }
+                });
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                applyTheme(currentTheme);
+            }
+        })();
+    </script>
+
+</body>
+</html>
