@@ -277,7 +277,7 @@
                 document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             }));
 
-            // --- 工具切换逻辑 (已修复) ---
+            // --- 工具切换逻辑 ---
             const toolLinks = document.querySelectorAll('.tool-list a');
             const toolCards = document.querySelectorAll('.tool-card');
 
@@ -421,11 +421,10 @@
 
                 const allPoints = Array.from(tracks.values()).flatMap(sample => Array.from(sample.values()).flat());
                 
-                // --- 修正: 恢复自适应范围，并正确处理日界线 ---
                 const trackGeoJSON = { type: "MultiPoint", coordinates: allPoints.map(p => [+p.lon, +p.lat]) };
                 const projection = d3.geoMercator()
-                    .rotate([-180, 0]) // 关键: 先将投影中心移到太平洋
-                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON); // 然后让 D3 自动计算缩放和平移
+                    .rotate([-180, 0])
+                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
 
                 const pathGenerator = d3.geoPath().projection(projection);
 
@@ -456,12 +455,13 @@
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
             
+            // --- ENM Diagnosis Tool Logic ---
             const runDiagnosisBtn = document.getElementById('run-diagnosis');
             const imageUploadInput = document.getElementById('image-upload');
             const diagnosisResultsEl = document.getElementById('diagnosis-results');
-            // ▼▼▼ ADDED selectors for the new image preview elements ▼▼▼
             const imagePreviewContainer = document.getElementById('enm-image-preview-container');
             const previewImage = document.getElementById('enm-preview-image');
+            
             let session; // To hold the ONNX session
 
             const class_ids = [15, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
@@ -493,28 +493,23 @@
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
 
+                let modelBuffer;
+
                 try {
-                    resultsEl.textContent = '开始下载模型...';
+                    resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
                     progressBar.style.width = '0%';
-
                     const response = await fetch(modelUrl);
-                    if (!response.ok) {
-                        throw new Error(`网络响应错误: ${response.statusText}`);
-                    }
-
+                    if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+                    
                     const contentLength = response.headers.get('content-length');
                     if (!contentLength) {
-                        console.warn('无法获取Content-Length，无法显示下载进度。');
-                        const modelBuffer = await response.arrayBuffer();
-                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
-                        session = await ort.InferenceSession.create(modelBuffer);
+                        modelBuffer = await response.arrayBuffer();
                     } else {
                         const total = parseInt(contentLength, 10);
                         let loaded = 0;
                         const reader = response.body.getReader();
                         const chunks = [];
-
                         while (true) {
                             const { done, value } = await reader.read();
                             if (done) break;
@@ -523,32 +518,55 @@
                             const progress = (loaded / total) * 100;
                             progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
-
-                        const modelBuffer = new Uint8Array(loaded).buffer;
-                        const view = new Uint8Array(modelBuffer);
+                        const fullBuffer = new Uint8Array(loaded);
                         let offset = 0;
                         for (const chunk of chunks) {
-                            view.set(chunk, offset);
+                            fullBuffer.set(chunk, offset);
                             offset += chunk.length;
                         }
-
-                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
-                        session = await ort.InferenceSession.create(modelBuffer);
+                        modelBuffer = fullBuffer.buffer;
                     }
-
-                    resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                    runBtn.disabled = false;
-                    runBtn.textContent = '开始分析';
-                    setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
-
-                } catch (e) {
-                    resultsEl.textContent = `模型加载失败: ${e.message}。`;
+                    resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
+                } catch(e) {
+                    resultsEl.textContent = `模型文件下载失败: ${e.message}。`;
                     progressContainer.style.display = 'none';
                     console.error(e);
+                    return;
                 }
+                
+                try {
+                    console.log("Attempting to create session with WASM backend...");
+                    resultsEl.textContent = '正在尝试使用WASM后端...';
+                    session = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    console.log("Session created successfully with WASM backend.");
+                } catch (wasmError) {
+                    console.warn("WASM backend failed to initialize.", wasmError);
+                    try {
+                        console.log("Attempting to create session with WebGL backend as fallback...");
+                        resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
+                        session = await ort.InferenceSession.create(modelBuffer, {
+                            executionProviders: ['webgl'],
+                            graphOptimizationLevel: 'all'
+                        });
+                        console.log("Session created successfully with WebGL backend.");
+                    } catch (webglError) {
+                        console.error("Fallback WebGL backend also failed to initialize.", webglError);
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WASM, WebGL) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
+                        progressContainer.style.display = 'none';
+                        console.error("Original WASM Error:", wasmError);
+                        return;
+                    }
+                }
+                
+                resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                runBtn.disabled = false;
+                runBtn.textContent = '开始分析';
+                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
 
-            // Load the model as soon as the tool is visible
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
                 for(const mutation of mutationsList) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
@@ -561,11 +579,10 @@
             });
             const enmCard = document.getElementById('enm-diagnosis');
             if(enmCard) {
-                  enmToolObserver.observe(enmCard, { attributes: true });
-                  // Initial load if it's the default active tab
-                  if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
-                        loadModel();
-                  }
+                enmToolObserver.observe(enmCard, { attributes: true });
+                if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                    loadModel();
+                }
             }
 
             async function preprocessImage(file) {
@@ -578,21 +595,17 @@
                             canvas.width = MODEL_INPUT_SIZE;
                             canvas.height = MODEL_INPUT_SIZE;
                             const ctx = canvas.getContext('2d');
-
                             const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
                             const newWidth = Math.round(img.width * ratio);
                             const newHeight = Math.round(img.height * ratio);
                             const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
                             const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
-
                             ctx.fillStyle = 'rgb(114, 114, 114)';
                             ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
                             ctx.drawImage(img, padX, padY, newWidth, newHeight);
-                            
                             const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
                             const { data } = imageData;
                             const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
-                            
                             for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
                                 inputTensor[i] = data[i * 4] / 255.0;
                                 inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
@@ -608,11 +621,9 @@
                 });
             }
 
-            // ▼▼▼ MODIFIED THIS FUNCTION ▼▼▼
             async function runDiagnosis() {
                 const files = imageUploadInput.files;
 
-                // Reset preview on each run
                 if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
                 if (previewImage) previewImage.src = '';
 
@@ -620,12 +631,12 @@
                     diagnosisResultsEl.textContent = '请先选择一个或多个图像文件。';
                     return;
                 }
+                
                 if (!session) {
                     diagnosisResultsEl.textContent = '模型尚未加载完成，请稍候。';
                     return;
                 }
 
-                // Show preview for single image
                 if (files.length === 1 && imagePreviewContainer && previewImage) {
                     previewImage.src = URL.createObjectURL(files[0]);
                     imagePreviewContainer.style.display = 'block';
@@ -634,32 +645,20 @@
                 runDiagnosisBtn.disabled = true;
                 runDiagnosisBtn.textContent = '分析中...';
                 diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
-                let resultsText = '\n按时间顺序的推理结果：\n';
+                let resultsText = '按时间顺序的推理结果：';
 
                 const analysisPromises = Array.from(files).map(async (file) => {
                     try {
                         const preprocessedData = await preprocessImage(file);
                         const tensor = new ort.Tensor('float32', preprocessedData, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
-                        
                         const feeds = { 'images': tensor };
                         const results = await session.run(feeds);
                         const outputTensor = results.output0;
-                        
-                        // YOLOv8 classification model's exported ONNX already includes Softmax
                         const probs = Array.from(outputTensor.data);
-
                         const polarizedProbs = polarize_probs(probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
-
-                        let distributionText = "\n  Probabilities:\n";
-                        polarizedProbs.forEach((prob, i) => {
-                            const className = class_ids[i];
-                            const percentage = (prob * 100).toFixed(1);
-                            distributionText += `     ${className}: ${percentage.padStart(5, ' ')}%\n`;
-
-                        });
-                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n\n`;
+                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
@@ -673,11 +672,10 @@
                 runDiagnosisBtn.disabled = false;
                 runDiagnosisBtn.textContent = '开始分析';
             }
-            // ▲▲▲ END OF MODIFIED FUNCTION ▲▲▲
             if(runDiagnosisBtn) {
                  runDiagnosisBtn.addEventListener('click', runDiagnosis);
             }
-                        // --- ENM TC Diagnosis Help Modal Logic ---
+            
             const enmHelpBtn = document.getElementById('enm-help-btn');
             const enmHelpModal = document.getElementById('enm-help-modal');
             const enmHelpOverlay = document.getElementById('enm-help-overlay');
