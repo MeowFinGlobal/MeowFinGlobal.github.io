@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工具箱 - Enceladus Blog</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap)" rel="stylesheet">
+    <script defer src="./ort.min.js"></script>
     <style>
         :root {
             --bg-color: #f8f9fa; --text-color: #212529; --primary-color: #4a90e2; --secondary-color: #f5a623;
@@ -74,6 +74,10 @@
         .site-footer { text-align: center; padding: 2rem 1rem; margin-top: 3rem; color: var(--text-muted); border-top: 1px solid var(--border-color); transition: all 0.3s ease; }
         #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
+        
+        /* --- Progress Bar Styles --- */
+        .progress-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.2s ease-in-out; }
 
         @media (max-width: 768px) { .toolbox-layout { flex-direction: column; } }
     </style>
@@ -116,7 +120,7 @@
                 </ul>
             </aside>
             <section class="tool-content">
-                <div id="planetary-calculator" class="tool-card" style="display: none;">
+                <div id="planetary-calculator" class="tool-card">
                     <h2 class="tool-title">行星参数计算器</h2>
                     <div class="form-group">
                         <label for="mass">行星质量 (地球倍数, M⊕)</label>
@@ -214,7 +218,7 @@
                     </div>
                 </div>
 
-                <div id="fnv3-ensemble" class="tool-card">
+                <div id="fnv3-ensemble" class="tool-card" style="display: none;">
                     <h2 class="tool-title">FNV3 TC Ensemble Path</h2>
                     <div class="form-grid">
                         <div class="form-group"><label for="lon-min">最小经度</label><input type="number" id="lon-min" value="-151"></div>
@@ -230,7 +234,7 @@
                     <div id="fnv3-stats" style="margin-top: 1rem; font-size: 0.9rem;"></div>
                 </div>
 
-                <div id="enm-diagnosis" class="tool-card">
+                <div id="enm-diagnosis" class="tool-card" style="display: none;">
                     <h2 class="tool-title">ENM TC Diagnosis v0.114514</h2>
                     <div class="form-group">
                         <label for="image-upload">上传热带气旋图像 (可多选)</label>
@@ -239,6 +243,12 @@
                     <div class="button-group">
                         <button id="run-diagnosis" class="btn-generate" disabled>加载模型中...</button>
                         <button id="enm-help-btn" class="btn-help">?</button>
+                    </div>
+                    <div id="model-progress-container" class="progress-container" style="display: none;">
+                         <div id="model-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div id="enm-image-preview-container" style="display: none; margin-top: 1.5rem;">
+                        <img id="enm-preview-image" src="" alt="Uploaded Image Preview" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                     <div id="diagnosis-results">请等待模型加载完成。</div>
                 </div>
@@ -254,11 +264,10 @@
     <div id="enm-help-overlay" class="modal-overlay" style="display: none;"></div>
     <div id="enm-help-modal" class="modal" style="display: none;">
         <button id="enm-help-close" class="modal-close">&times;</button>
-        <!-- 内容会由JS注入 -->
     </div>
     
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/topojson@3"></script>
+    <script src="[https://d3js.org/d3.v7.min.js](https://d3js.org/d3.v7.min.js)"></script>
+    <script src="[https://unpkg.com/topojson@3](https://unpkg.com/topojson@3)"></script>
     <script>
         (function() {
             // --- 滚动效果 ---
@@ -268,7 +277,7 @@
                 document.body.style.setProperty('--after-transform', `translateY(${scrollY * 0.2}px) rotate(-20deg)`);
             }));
 
-            // --- 工具切换逻辑 (已修复) ---
+            // --- 工具切换逻辑 ---
             const toolLinks = document.querySelectorAll('.tool-list a');
             const toolCards = document.querySelectorAll('.tool-card');
 
@@ -290,7 +299,6 @@
             });
 
             // --- 行星参数计算器逻辑 ---
-            // (代码与之前版本相同，此处省略以保持简洁)
             const massInput = document.getElementById('mass');
             const radiusInput = document.getElementById('radius');
             const stellarMassInput = document.getElementById('stellar-mass');
@@ -330,7 +338,6 @@
             calculatePlanetaryParams();
 
             // --- 雷达测风估算逻辑 ---
-            // (代码与之前版本相同，此处省略以保持简洁)
             const radarHeightInput = document.getElementById('radar-height'), elevationAngleInput = document.getElementById('elevation-angle'), distanceInput = document.getElementById('distance'), rawWindSpeedInput = document.getElementById('raw-wind-speed'), detectedHeightOutput = document.getElementById('detected-height'), convertedWindOutput = document.getElementById('converted-wind');
             function calculateRadarWind() {
                 const hRadar = parseFloat(radarHeightInput.value), angleDeg = parseFloat(elevationAngleInput.value), distanceKm = parseFloat(distanceInput.value), windSpeed = parseFloat(rawWindSpeedInput.value);
@@ -344,7 +351,6 @@
             calculateRadarWind();
 
             // --- ASCAT风扫修正逻辑 ---
-            // (代码与之前版本相同，此处省略以保持简洁)
             const ascatWindInput = document.getElementById('ascat-wind'), ascatUhrWindInput = document.getElementById('ascat-uhr-wind'), ascatCorrectedOutput = document.getElementById('ascat-corrected'), ascatUhrCorrectedOutput = document.getElementById('ascat-uhr-corrected');
             function calculateAscatCorrection() {
                 const xAscat = parseFloat(ascatWindInput.value);
@@ -366,10 +372,10 @@
                 mapContainer.style.display = 'none'; mapContainer.innerHTML = ''; statsEl.innerHTML = ''; statusEl.textContent = '正在寻找最新的数据文件...';
                 const filters = { lonMin: parseFloat(document.getElementById('lon-min').value), lonMax: parseFloat(document.getElementById('lon-max').value), latMin: parseFloat(document.getElementById('lat-min').value), latMax: parseFloat(document.getElementById('lat-max').value), leadTimeMin: parseFloat(document.getElementById('lead-time-min').value), leadTimeMax: parseFloat(document.getElementById('lead-time-max').value) };
                 try {
-                    const world = await fetch("https://unpkg.com/world-atlas@2/countries-110m.json").then(res => res.json());
+                    const world = await fetch("[https://unpkg.com/world-atlas@2/countries-110m.json](https://unpkg.com/world-atlas@2/countries-110m.json)").then(res => res.json());
                     const { fileUrl, fileName } = await findLatestFnv3File(statusEl);
                     statusEl.textContent = `已找到最新文件: ${fileName}，正在抓取和处理...`;
-                    const proxyUrl = 'https://corsproxy.io/?';
+                    const proxyUrl = '[https://corsproxy.io/](https://corsproxy.io/)?';
                     const csvText = await fetch(proxyUrl + encodeURIComponent(fileUrl)).then(res => { if (!res.ok) throw new Error(`无法抓取文件 ${fileName}`); return res.text(); });
                     const tracks = processFnv3Csv(csvText, filters);
                     if (tracks.size === 0) { statusEl.textContent = `在 ${fileName} 中未找到符合筛选条件的气旋路径。`; return; }
@@ -381,8 +387,8 @@
                 } catch (error) { console.error('FNV3工具出错:', error); statusEl.textContent = `错误: ${error.message}`; }
             }
             async function findLatestFnv3File(statusEl) {
-                const proxyUrl = 'https://corsproxy.io/?'; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
-                const baseUrl = 'https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/';
+                const proxyUrl = '[https://corsproxy.io/](https://corsproxy.io/)?'; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
+                const baseUrl = '[https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/](https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/)';
                 for (let i = 0; i < 20; i++) {
                     const year = now.getUTCFullYear(), month = (now.getUTCMonth() + 1).toString().padStart(2, '0'), day = now.getUTCDate().toString().padStart(2, '0'), hour = now.getUTCHours().toString().padStart(2, '0');
                     const fileName = `FNV3_${year}_${month}_${day}T${hour}_00_cyclogenesis.csv`, fileUrl = baseUrl + fileName;
@@ -415,11 +421,10 @@
 
                 const allPoints = Array.from(tracks.values()).flatMap(sample => Array.from(sample.values()).flat());
                 
-                // --- 修正: 恢复自适应范围，并正确处理日界线 ---
                 const trackGeoJSON = { type: "MultiPoint", coordinates: allPoints.map(p => [+p.lon, +p.lat]) };
                 const projection = d3.geoMercator()
-                    .rotate([-180, 0]) // 关键: 先将投影中心移到太平洋
-                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON); // 然后让 D3 自动计算缩放和平移
+                    .rotate([-180, 0])
+                    .fitExtent([[10, 10], [width - 10, height - 10]], trackGeoJSON);
 
                 const pathGenerator = d3.geoPath().projection(projection);
 
@@ -450,15 +455,19 @@
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
             
+            // --- ENM Diagnosis Tool Logic ---
             const runDiagnosisBtn = document.getElementById('run-diagnosis');
             const imageUploadInput = document.getElementById('image-upload');
             const diagnosisResultsEl = document.getElementById('diagnosis-results');
+            const imagePreviewContainer = document.getElementById('enm-image-preview-container');
+            const previewImage = document.getElementById('enm-preview-image');
+            
             let session; // To hold the ONNX session
 
             const class_ids = [15, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
             const temperature = 0.89;
             const pred_anchor = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
-            const ci_anchor = [23, 30, 35, 45, 55, 65, 77, 90, 102, 115, 128, 142, 158, 190];
+            const ci_anchor = [23, 30, 35, 45, 55, 65, 77, 90, 102, 115, 128, 143, 163, 193];
             const MODEL_INPUT_SIZE = 512;
 
             const polarize_probs = (probs, temp) => {
@@ -478,34 +487,102 @@
             const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
 
             async function loadModel() {
+                const runBtn = document.getElementById('run-diagnosis');
+                const resultsEl = document.getElementById('diagnosis-results');
+                const progressContainer = document.getElementById('model-progress-container');
+                const progressBar = document.getElementById('model-progress-bar');
+                const modelUrl = './epoch15.onnx';
+
+                let modelBuffer;
+
                 try {
-                    session = await ort.InferenceSession.create('./epoch15.onnx');
-                    diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                    runDiagnosisBtn.disabled = false;
-                    runDiagnosisBtn.textContent = '开始分析';
-                } catch (e) {
-                    diagnosisResultsEl.textContent = `模型加载失败: ${e.message}。请确保 best.onnx 文件已上传至网站根目录。`;
+                    resultsEl.textContent = '开始下载模型文件...';
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+                    const response = await fetch(modelUrl);
+                    if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+                    
+                    const contentLength = response.headers.get('content-length');
+                    if (!contentLength) {
+                        modelBuffer = await response.arrayBuffer();
+                    } else {
+                        const total = parseInt(contentLength, 10);
+                        let loaded = 0;
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(value);
+                            loaded += value.length;
+                            const progress = (loaded / total) * 100;
+                            progressBar.style.width = `${progress.toFixed(2)}%`;
+                        }
+                        const fullBuffer = new Uint8Array(loaded);
+                        let offset = 0;
+                        for (const chunk of chunks) {
+                            fullBuffer.set(chunk, offset);
+                            offset += chunk.length;
+                        }
+                        modelBuffer = fullBuffer.buffer;
+                    }
+                    resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
+                } catch(e) {
+                    resultsEl.textContent = `模型文件下载失败: ${e.message}。`;
+                    progressContainer.style.display = 'none';
                     console.error(e);
+                    return;
                 }
+                
+                try {
+                    console.log("Attempting to create session with WASM backend...");
+                    resultsEl.textContent = '正在尝试使用WASM后端...';
+                    session = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    console.log("Session created successfully with WASM backend.");
+                } catch (wasmError) {
+                    console.warn("WASM backend failed to initialize.", wasmError);
+                    try {
+                        console.log("Attempting to create session with WebGL backend as fallback...");
+                        resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
+                        session = await ort.InferenceSession.create(modelBuffer, {
+                            executionProviders: ['webgl'],
+                            graphOptimizationLevel: 'all'
+                        });
+                        console.log("Session created successfully with WebGL backend.");
+                    } catch (webglError) {
+                        console.error("Fallback WebGL backend also failed to initialize.", webglError);
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WASM, WebGL) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
+                        progressContainer.style.display = 'none';
+                        console.error("Original WASM Error:", wasmError);
+                        return;
+                    }
+                }
+                
+                resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                runBtn.disabled = false;
+                runBtn.textContent = '开始分析';
+                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
-            // Load the model as soon as the tool is visible
+
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
                 for(const mutation of mutationsList) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                         const enmCard = document.getElementById('enm-diagnosis');
                         if (enmCard.style.display !== 'none' && !session) {
-                           loadModel();
+                             loadModel();
                         }
                     }
                 }
             });
             const enmCard = document.getElementById('enm-diagnosis');
             if(enmCard) {
-                 enmToolObserver.observe(enmCard, { attributes: true });
-                 // Initial load if it's the default active tab
-                 if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
-                     loadModel();
-                 }
+                enmToolObserver.observe(enmCard, { attributes: true });
+                if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                    loadModel();
+                }
             }
 
             async function preprocessImage(file) {
@@ -518,21 +595,17 @@
                             canvas.width = MODEL_INPUT_SIZE;
                             canvas.height = MODEL_INPUT_SIZE;
                             const ctx = canvas.getContext('2d');
-
                             const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
                             const newWidth = Math.round(img.width * ratio);
                             const newHeight = Math.round(img.height * ratio);
                             const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
                             const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
-
                             ctx.fillStyle = 'rgb(114, 114, 114)';
                             ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
                             ctx.drawImage(img, padX, padY, newWidth, newHeight);
-                            
                             const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
                             const { data } = imageData;
                             const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
-                            
                             for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
                                 inputTensor[i] = data[i * 4] / 255.0;
                                 inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
@@ -550,47 +623,42 @@
 
             async function runDiagnosis() {
                 const files = imageUploadInput.files;
+
+                if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+                if (previewImage) previewImage.src = '';
+
                 if (!files || files.length === 0) {
                     diagnosisResultsEl.textContent = '请先选择一个或多个图像文件。';
                     return;
                 }
+                
                 if (!session) {
                     diagnosisResultsEl.textContent = '模型尚未加载完成，请稍候。';
                     return;
                 }
 
+                if (files.length === 1 && imagePreviewContainer && previewImage) {
+                    previewImage.src = URL.createObjectURL(files[0]);
+                    imagePreviewContainer.style.display = 'block';
+                }
+
                 runDiagnosisBtn.disabled = true;
                 runDiagnosisBtn.textContent = '分析中...';
                 diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
-                let resultsText = '按时间顺序的预测结果：';
+                let resultsText = '按时间顺序的推理结果：';
 
                 const analysisPromises = Array.from(files).map(async (file) => {
                     try {
                         const preprocessedData = await preprocessImage(file);
                         const tensor = new ort.Tensor('float32', preprocessedData, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
-                        
                         const feeds = { 'images': tensor };
                         const results = await session.run(feeds);
                         const outputTensor = results.output0;
-                        
-                        // --- 修正: 直接使用模型输出作为概率 ---
-                        // YOLOv8分类模型导出的ONNX已包含Softmax层
-                        const probs = Array.from(outputTensor.data);  // softmax 后输出
-                        // --- 修正结束 ---
-
+                        const probs = Array.from(outputTensor.data);
                         const polarizedProbs = polarize_probs(probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
-
-                        // --- 修正: 显示所有概率，并按强度排序 ---
-                        let distributionText = "\n  Probabilities:\n";
-                        polarizedProbs.forEach((prob, i) => {
-                            const className = class_ids[i];
-                            const percentage = (prob * 100).toFixed(1);
-                            distributionText += `    ${className}: ${percentage.padStart(5, ' ')}%\n`;
-
-                        });
-                        return `${file.name}: INT=${ci_value.toFixed(1)}KT\n`;
+                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
@@ -607,30 +675,30 @@
             if(runDiagnosisBtn) {
                  runDiagnosisBtn.addEventListener('click', runDiagnosis);
             }
-                        // --- ENM TC Diagnosis Help Modal Logic ---
+            
             const enmHelpBtn = document.getElementById('enm-help-btn');
             const enmHelpModal = document.getElementById('enm-help-modal');
             const enmHelpOverlay = document.getElementById('enm-help-overlay');
             
             if (enmHelpBtn) {
                 const helpContent = `
-                    <button id="enm-help-close" class="modal-close">&times;</button>
-                    <h3>工具简介</h3>
-                    <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
-                    <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
-                    <h3>使用说明</h3>
-                    <ol>
-                        <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
-                        <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
-                        <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
-                    </ol>
-                    <h3>注意事项 (Disclaimer)</h3>
-                    <ul>
-                        <li><strong>实验性项目</strong>：本工具目前为实验性项目，其结果仅供参考和研究。</li>
-                        <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
-                        <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，这种波动在低强度段比较明显。</li>
-                        <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
-                    </ul>
+                                <button id="enm-help-close" class="modal-close">&times;</button>
+                                <h3>工具简介</h3>
+                                <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
+                                <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
+                                <h3>使用说明</h3>
+                                <ol>
+                                    <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
+                                    <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
+                                    <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
+                                </ol>
+                                <h3>注意事项 (Disclaimer)</h3>
+                                <ul>
+                                    <li><strong>实验性项目</strong>：本玩具为实验性项目，其结果仅供交流学习，不代表任何个体和机构的观点。</li>
+                                    <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
+                                    <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，有时可以超过15%。</li>
+                                    <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
+                                </ul>
                 `;
                 enmHelpModal.innerHTML = helpContent;
                 
