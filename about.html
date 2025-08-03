@@ -493,8 +493,13 @@
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
 
+    // --- 新的 session 变量声明 ---
+                let session;
+                let modelBuffer;
+
+    // --- 第一步：先抓取模型文件 ---
                 try {
-                    resultsEl.textContent = '开始下载模型...';
+                    resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
                     progressBar.style.width = '0%';
 
@@ -506,9 +511,7 @@
                     const contentLength = response.headers.get('content-length');
                     if (!contentLength) {
                         console.warn('无法获取Content-Length，无法显示下载进度。');
-                        const modelBuffer = await response.arrayBuffer();
-                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
-                        session = await ort.InferenceSession.create(modelBuffer);
+                        modelBuffer = await response.arrayBuffer();
                     } else {
                         const total = parseInt(contentLength, 10);
                         let loaded = 0;
@@ -524,28 +527,65 @@
                             progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
 
-                        const modelBuffer = new Uint8Array(loaded).buffer;
-                        const view = new Uint8Array(modelBuffer);
+                        const fullBuffer = new Uint8Array(loaded);
                         let offset = 0;
                         for (const chunk of chunks) {
-                            view.set(chunk, offset);
+                            fullBuffer.set(chunk, offset);
                             offset += chunk.length;
                         }
-
-                        resultsEl.textContent = '模型下载完毕，正在创建会话...';
-                        session = await ort.InferenceSession.create(modelBuffer);
+                        modelBuffer = fullBuffer.buffer;
                     }
+                    resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
 
-                    resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                    runBtn.disabled = false;
-                    runBtn.textContent = '开始分析';
-                    setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
-
-                } catch (e) {
-                    resultsEl.textContent = `模型加载失败: ${e.message}。`;
+                } catch(e) {
+                    resultsEl.textContent = `模型文件下载失败: ${e.message}。`;
                     progressContainer.style.display = 'none';
                     console.error(e);
+                    return; // 下载失败则终止
                 }
+    
+    // --- 第二步：尝试创建会话（带备选方案） ---
+                try {
+        // 尝试1: 优先使用 WASM 后端
+                    console.log("Attempting to create session with WASM backend...");
+                    resultsEl.textContent = '正在尝试使用WASM后端...';
+                    session = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    console.log("Session created successfully with WASM backend.");
+
+                } catch (wasmError) {
+                    console.warn("WASM backend failed to initialize.", wasmError);
+        
+                    try {
+            // 尝试2: WASM 失败后，使用 WebGL 后端作为备选
+                        console.log("Attempting to create session with WebGL backend as fallback...");
+                        resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
+                        session = await ort.InferenceSession.create(modelBuffer, {
+                            executionProviders: ['webgl'],
+                            graphOptimizationLevel: 'all'
+                        });
+                        console.log("Session created successfully with WebGL backend.");
+
+                    } catch (webglError) {
+                        console.error("Fallback WebGL backend also failed to initialize.", webglError);
+            
+            // 两种后端都失败了
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WASM, WebGL) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
+                        progressContainer.style.display = 'none';
+                        console.error("Original WASM Error:", wasmError); // 打印原始错误以供调试
+                        return; // 彻底失败，终止
+                    }
+                }
+    
+    // --- 第三步：成功后的处理 ---
+    // 如果代码能执行到这里，说明 session 已经成功创建（无论是WASM还是WebGL）
+                window.ortSession = session; // 将 session 赋值给一个全局变量或合适的作用域
+                resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                runBtn.disabled = false;
+                runBtn.textContent = '开始分析';
+                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
 
             // Load the model as soon as the tool is visible
