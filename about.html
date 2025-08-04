@@ -260,7 +260,7 @@
 
                 <div id="enm-realtime" class="tool-card" style="display: none;">
                     <h2 class="tool-title">ENM TC Real-time</h2>
-                    <button id="fetch-realtime-btn" class="btn-generate" disabled>加载模型中...</button>
+                    <button id="fetch-realtime-btn" class="btn-generate">抓取实时图像并分析</button>
                     <div id="realtime-results-container">点击按钮开始抓取和分析...</div>
                 </div>
 
@@ -417,7 +417,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -508,9 +508,9 @@
                 let modelBuffer;
 
                 try {
-                    resultsEls.forEach(el => el.textContent = '开始下载模型文件...');
-                    progressContainer.style.display = 'block';
-                    progressBar.style.width = '0%';
+                    resultsEls.forEach(el => { if(el) el.textContent = '开始下载模型文件...'});
+                    if(progressContainer) progressContainer.style.display = 'block';
+                    if(progressBar) progressBar.style.width = '0%';
                     const response = await fetch(modelUrl);
                     if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
                     
@@ -528,7 +528,7 @@
                             chunks.push(value);
                             loaded += value.length;
                             const progress = (loaded / total) * 100;
-                            progressBar.style.width = `${progress.toFixed(2)}%`;
+                            if(progressBar) progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
                         const fullBuffer = new Uint8Array(loaded);
                         let offset = 0;
@@ -538,10 +538,10 @@
                         }
                         modelBuffer = fullBuffer.buffer;
                     }
-                    resultsEls.forEach(el => el.textContent = '模型文件下载完毕，正在初始化推理引擎...');
+                    resultsEls.forEach(el => { if(el) el.textContent = '模型文件下载完毕，正在初始化推理引擎...'});
                 } catch(e) {
-                    resultsEls.forEach(el => el.textContent = `模型文件下载失败: ${e.message}。`);
-                    progressContainer.style.display = 'none';
+                    resultsEls.forEach(el => { if(el) el.textContent = `模型文件下载失败: ${e.message}。`});
+                    if(progressContainer) progressContainer.style.display = 'none';
                     console.error(e);
                     return;
                 }
@@ -554,30 +554,31 @@
                         session = await ort.InferenceSession.create(modelBuffer, { executionProviders: ['webgl'], graphOptimizationLevel: 'all' });
                     } catch (webglError) {
                         console.error("All backends (WASM, WebGL) failed to initialize.", webglError);
-                        resultsEls.forEach(el => el.textContent = `模型加载失败：所有可用后端均初始化失败。`);
-                        progressContainer.style.display = 'none';
+                        resultsEls.forEach(el => { if(el) el.textContent = `模型加载失败：所有可用后端均初始化失败。`});
+                        if(progressContainer) progressContainer.style.display = 'none';
                         return;
                     }
                 }
                 
-                diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                document.getElementById('realtime-results-container').textContent = '模型加载成功！点击按钮开始抓取和分析。';
+                if(diagnosisResultsEl) diagnosisResultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                if(document.getElementById('realtime-results-container')) document.getElementById('realtime-results-container').textContent = '模型加载成功！点击按钮开始抓取和分析。';
                 enmButtons.forEach(btn => {
                     if (btn) {
                         btn.disabled = false;
                         btn.textContent = btn.id === 'run-diagnosis' ? '开始分析' : '抓取实时图像并分析';
                     }
                 });
-                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
+                if(progressContainer) setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
 
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
+                let modelLoaded = false;
                 for(const mutation of mutationsList) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                         const activeTool = document.querySelector('.tool-list a.active');
-                        if (activeTool && (activeTool.dataset.tool === 'enm-diagnosis' || activeTool.dataset.tool === 'enm-realtime') && !session) {
+                        if (activeTool && activeTool.dataset.tool === 'enm-diagnosis' && !session && !modelLoaded) {
+                             modelLoaded = true;
                              loadModel();
-                             observer.disconnect(); // Load only once
                         }
                     }
                 }
@@ -681,10 +682,10 @@
                 const mainPageUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/';
 
                 try {
+                    // 1. Fetch Typhoon List
                     const response = await fetch(proxyUrl + encodeURIComponent(mainPageUrl));
                     if (!response.ok) throw new Error(`无法抓取台风列表 (Status: ${response.status})`);
                     const htmlText = await response.text();
-                    
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(htmlText, 'text/html');
                     const thElements = doc.querySelectorAll('th.IMGTABTH');
@@ -692,33 +693,64 @@
 
                     if (typhoonIds.length === 0) {
                         resultsContainer.innerHTML = '<p>当前没有发现活跃的实时台风。</p>';
-                        fetchRealtimeBtn.disabled = false;
-                        fetchRealtimeBtn.textContent = '抓取实时图像并分析';
                         return;
                     }
 
-                    resultsContainer.innerHTML = `<p>发现 ${typhoonIds.length} 个活跃台风: ${typhoonIds.join(', ')}。正在逐个寻找最新图像并分析...</p>`;
+                    resultsContainer.innerHTML = `<p>发现 ${typhoonIds.length} 个活跃台风: ${typhoonIds.join(', ')}。正在逐个寻找并加载最新图像...</p>`;
+                    
+                    // 2. Fetch all images first
+                    const imageFetchPromises = typhoonIds.map(id => findLatestImage(id));
+                    const fetchedImages = await Promise.all(imageFetchPromises);
+                    
+                    // Clear loading message and prepare for results
+                    resultsContainer.innerHTML = ''; 
 
-                    for (const id of typhoonIds) {
+                    const analysisTasks = [];
+                    fetchedImages.forEach(result => {
                         const itemDiv = document.createElement('div');
                         itemDiv.className = 'realtime-item';
-                        itemDiv.innerHTML = `<h4>台风 ${id}</h4><p id="status-${id}">正在寻找最新图像...</p>`;
-                        resultsContainer.appendChild(itemDiv);
+                        const header = document.createElement('h4');
+                        header.textContent = `台风 ${result.id}`;
+                        itemDiv.appendChild(header);
 
-                        try {
-                            const result = await findAndAnalyzeImage(id, `status-${id}`);
+                        if (result.status === 'success') {
                             const imgEl = document.createElement('img');
-                            imgEl.src = result.proxiedUrl;
+                            imgEl.src = result.blobUrl;
                             const resultP = document.createElement('p');
-                            resultP.textContent = `分析结果: Int=${result.analysis.toFixed(1)}KT (图像时间: ${result.imageTimeUTC}Z)`;
+                            resultP.id = `result-${result.id}-${result.imageTimeUTC}`;
+                            resultP.textContent = `图像加载完毕 (时间: ${result.imageTimeUTC}Z)，等待模型...`;
                             
-                            const statusEl = document.getElementById(`status-${id}`);
-                            statusEl.innerHTML = '';
-                            statusEl.appendChild(imgEl);
-                            statusEl.appendChild(resultP);
+                            itemDiv.appendChild(imgEl);
+                            itemDiv.appendChild(resultP);
+                            analysisTasks.push({ ...result, resultElement: resultP });
+                        } else {
+                            const errorP = document.createElement('p');
+                            errorP.style.color = 'red';
+                            errorP.textContent = result.error;
+                            itemDiv.appendChild(errorP);
+                        }
+                        resultsContainer.appendChild(itemDiv);
+                    });
+                    
+                    // 3. Load the model AFTER images are fetched and displayed
+                    if (!session) {
+                        await loadModel(); 
+                    }
 
-                        } catch (e) {
-                            document.getElementById(`status-${id}`).textContent = `处理台风 ${id} 失败: ${e.message}`;
+                    if (!session) {
+                         throw new Error("模型加载失败，无法进行分析。");
+                    }
+
+                    // 4. Analyze images
+                    fetchRealtimeBtn.textContent = '分析中...';
+                    for (const task of analysisTasks) {
+                        task.resultElement.textContent = `正在分析 (时间: ${task.imageTimeUTC}Z)...`;
+                        try {
+                            const file = new File([task.blob], `${task.id}-${task.imageTimeUTC}.jpg`, { type: 'image/jpeg' });
+                            const analysisResult = await runSingleImageAnalysis(file);
+                            task.resultElement.textContent = `分析结果: Int=${analysisResult.toFixed(1)}KT (图像时间: ${task.imageTimeUTC}Z)`;
+                        } catch(e) {
+                            task.resultElement.textContent = `分析失败: ${e.message}`;
                         }
                     }
 
@@ -726,12 +758,11 @@
                     resultsContainer.innerHTML = `<p style="color: red;">抓取或分析过程中出错: ${e.message}</p>`;
                 } finally {
                     fetchRealtimeBtn.disabled = false;
-                    fetchRealtimeBtn.textContent = '重新抓取和分析';
+                    fetchRealtimeBtn.textContent = '重新抓取并分析';
                 }
             }
 
-            async function findAndAnalyzeImage(typhoonId, statusElementId) {
-                const statusEl = document.getElementById(statusElementId);
+            async function findLatestImage(typhoonId) {
                 let now = new Date();
                 const proxyUrl = 'https://corsproxy.io/?';
 
@@ -744,27 +775,19 @@
                     const imageUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/${typhoonId}/2/512x512/HMW9${dateStr}.${typhoonId}.jpg`;
                     const proxiedUrl = proxyUrl + encodeURIComponent(imageUrl);
                     
-                    statusEl.textContent = `正在尝试 ${dateStr}Z 的图像...`;
-
                     try {
                         const response = await fetch(proxiedUrl);
                         if (response.ok) {
-                            statusEl.textContent = '图像找到，正在下载并分析...';
                             const blob = await response.blob();
                             if (blob.type.startsWith('image/')) {
-                                const file = new File([blob], `${typhoonId}-${dateStr}.jpg`, { type: 'image/jpeg' });
-                                const analysisResult = await runSingleImageAnalysis(file);
-                                return { proxiedUrl, analysis: analysisResult, imageTimeUTC: dateStr };
+                                return { status: 'success', id: typhoonId, blob: blob, blobUrl: URL.createObjectURL(blob), imageTimeUTC: dateStr };
                             }
                         }
-                    } catch (e) {
-                        // Ignore fetch errors and continue trying
-                    }
+                    } catch (e) { /* Ignore and continue */ }
                     now.setUTCHours(now.getUTCHours() - 1);
                 }
-                throw new Error("在过去48小时内未找到可用图像。");
+                return { status: 'error', id: typhoonId, error: '在过去48小时内未找到可用图像。' };
             }
-
 
             if (fetchRealtimeBtn) {
                 fetchRealtimeBtn.addEventListener('click', runRealtimeAnalysis);
@@ -833,4 +856,4 @@
     </script>
 
 </body>
-</html>
+</ht
