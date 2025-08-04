@@ -602,33 +602,48 @@
                 }
             }
 
-            async function preprocessImage(file) {
+            async function preprocessImageFromElement(img) {
                 return new Promise((resolve, reject) => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = MODEL_INPUT_SIZE;
+                        canvas.height = MODEL_INPUT_SIZE;
+                        const ctx = canvas.getContext('2d');
+                        const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
+                        const newWidth = Math.round(img.width * ratio);
+                        const newHeight = Math.round(img.height * ratio);
+                        const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
+                        const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
+                        ctx.fillStyle = 'rgb(114, 114, 114)';
+                        ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                        ctx.drawImage(img, padX, padY, newWidth, newHeight);
+                        const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                        const { data } = imageData;
+                        const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
+                        for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
+                            inputTensor[i] = data[i * 4] / 255.0;
+                            inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
+                            inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0;
+                        }
+                        resolve(inputTensor);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+
+            async function preprocessImage(file) {
+                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = e => {
                         const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = MODEL_INPUT_SIZE;
-                            canvas.height = MODEL_INPUT_SIZE;
-                            const ctx = canvas.getContext('2d');
-                            const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
-                            const newWidth = Math.round(img.width * ratio);
-                            const newHeight = Math.round(img.height * ratio);
-                            const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
-                            const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
-                            ctx.fillStyle = 'rgb(114, 114, 114)';
-                            ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-                            ctx.drawImage(img, padX, padY, newWidth, newHeight);
-                            const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-                            const { data } = imageData;
-                            const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
-                            for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
-                                inputTensor[i] = data[i * 4] / 255.0;
-                                inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
-                                inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0;
+                        img.onload = async () => {
+                            try {
+                                const tensor = await preprocessImageFromElement(img);
+                                resolve(tensor);
+                            } catch (err) {
+                                reject(err);
                             }
-                            resolve(inputTensor);
                         };
                         img.onerror = reject;
                         img.src = e.target.result;
@@ -662,7 +677,7 @@
                 runDiagnosisBtn.disabled = true;
                 runDiagnosisBtn.textContent = '分析中...';
                 diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
-                let resultsText = '按时间顺序的推理结果：';
+                let resultsText = '按时间顺序的推理结果：\n';
 
                 const analysisPromises = Array.from(files).map(async (file) => {
                     try {
@@ -675,7 +690,7 @@
                         const polarizedProbs = polarize_probs(probs, temperature);
                         const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
                         const ci_value = pred_to_ci(weighted_pred);
-                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n`;
+                        return `${file.name}: Int=${ci_value.toFixed(1)}KT`;
                     } catch (e) {
                         console.error(`处理 ${file.name} 时出错:`, e);
                         return `${file.name}: 分析失败 - ${e.message}`;
@@ -699,23 +714,23 @@
             
             if (enmHelpBtn) {
                 const helpContent = `
-                                <button id="enm-help-close" class="modal-close">&times;</button>
-                                <h3>工具简介</h3>
-                                <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
-                                <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
-                                <h3>使用说明</h3>
-                                <ol>
-                                    <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
-                                    <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
-                                    <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
-                                </ol>
-                                <h3>注意事项 (Disclaimer)</h3>
-                                <ul>
-                                    <li><strong>实验性项目</strong>：本玩具为实验性项目，其结果仅供交流学习，不代表任何个体和机构的观点。</li>
-                                    <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
-                                    <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，有时可以超过15%。</li>
-                                    <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
-                                </ul>
+                                        <button id="enm-help-close" class="modal-close">&times;</button>
+                                        <h3>工具简介</h3>
+                                        <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
+                                        <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
+                                        <h3>使用说明</h3>
+                                        <ol>
+                                            <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
+                                            <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
+                                            <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
+                                        </ol>
+                                        <h3>注意事项 (Disclaimer)</h3>
+                                        <ul>
+                                            <li><strong>实验性项目</strong>：本玩具为实验性项目，其结果仅供交流学习，不代表任何个体和机构的观点。</li>
+                                            <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
+                                            <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，有时可以超过15%。</li>
+                                            <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
+                                        </ul>
                 `;
                 enmHelpModal.innerHTML = helpContent;
                 
@@ -769,7 +784,7 @@
                     });
 
                     if (tcIds.length === 0) {
-                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。';
+                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。（仅能保证在Chrome浏览器上正常加载...）';
                         fetchTcBtn.disabled = false;
                         return;
                     }
@@ -796,9 +811,37 @@
                 }
             }
 
+            async function runEnmAnalysisOnImage(id, img) {
+                const statusEl = document.getElementById(`analysis-status-${id}`);
+                try {
+                    if (!session) {
+                        // This will trigger the model loading process, which shows UI on the ENM tab.
+                        // It's a shared resource, so this is acceptable for now.
+                        await loadModel();
+                    }
+                    if (!session) {
+                        throw new Error("模型未能成功加载。");
+                    }
+                    statusEl.textContent = '分析中...';
+                    const preprocessedData = await preprocessImageFromElement(img);
+                    const tensor = new ort.Tensor('float32', preprocessedData, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
+                    const feeds = { 'images': tensor };
+                    const results = await session.run(feeds);
+                    const outputTensor = results.output0;
+                    const probs = Array.from(outputTensor.data);
+                    const polarizedProbs = polarize_probs(probs, temperature);
+                    const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
+                    const ci_value = pred_to_ci(weighted_pred);
+                    statusEl.innerHTML = `分析强度: <strong>${ci_value.toFixed(1)} KT</strong><br><span style="font-size:0.8em; color: var(--text-muted);">注意: 模型定强有时会受干扰，仅供参考。</span>`;
+                } catch (e) {
+                    console.error(`Error during ENM analysis for ${id}:`, e);
+                    statusEl.textContent = `分析失败: ${e.message}`;
+                }
+            }
+
             async function findAndDisplayTyphoonImage(id) {
-                const baseUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/';
                 const card = document.getElementById(`tc-card-${id}`);
+                const baseUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/';
                 let now = new Date();
 
                 // Search back up to 72 hours
@@ -811,11 +854,15 @@
                     const dateString = `${year}${month}${day}${hour}`;
                     
                     const imageUrl = `${baseUrl}${id}/2/512x512/HMW9${dateString}.${id}.jpg`;
+                    const proxyImageUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
                     
-                    const found = await checkImage(imageUrl);
+                    const { found, img } = await checkImage(proxyImageUrl);
                     if (found) {
                         const timestamp = `${yearFull}-${month}-${day} ${hour}:00 UTC`;
-                        card.innerHTML = `<img src="${imageUrl}" alt="Typhoon ${id}"><p>Typhoon ${id}</p><p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">${timestamp}</p>`;
+                        card.innerHTML = `<img src="${img.src}" alt="Typhoon ${id}"><p>Typhoon ${id}</p><p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">${timestamp}</p><p id="analysis-status-${id}" style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-color); min-height: 40px;">加载ENM自动定强模型中...</p>`;
+                        
+                        // Run analysis on the found image
+                        runEnmAnalysisOnImage(id, img);
                         return; // Exit after finding the image
                     }
                     
@@ -830,8 +877,10 @@
             function checkImage(url) {
                 return new Promise(resolve => {
                     const img = new Image();
-                    img.onload = () => resolve(true);
-                    img.onerror = () => resolve(false);
+                    // Necessary for canvas operations on cross-origin images when using a proxy
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => resolve({ found: true, img });
+                    img.onerror = () => resolve({ found: false, img: null });
                     img.src = url;
                 });
             }
