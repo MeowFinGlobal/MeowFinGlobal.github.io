@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
-    
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <style>
         :root {
             --bg-color: #f8f9fa; --text-color: #212529; --primary-color: #4a90e2; --secondary-color: #f5a623;
@@ -64,11 +64,7 @@
         .btn-generate:disabled { background-color: var(--text-muted); cursor: not-allowed; }
         .btn-help { flex-shrink: 0; background-color: var(--text-muted); color: var(--card-bg-color); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; }
         .btn-help:hover { background-color: var(--primary-color); transform: scale(1.1); }
-        #diagnosis-results, #realtime-results-container { margin-top: 1.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; white-space: pre-wrap; word-wrap: break-word; color: var(--text-muted); min-height: 100px; }
-        .realtime-item { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px dashed var(--border-color); }
-        .realtime-item:last-child { border-bottom: none; }
-        .realtime-item img { max-width: 100%; border-radius: 8px; margin-bottom: 1rem; }
-        .realtime-item h4 { color: var(--article-title-color); }
+        #diagnosis-results { margin-top: 1.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; white-space: pre-wrap; word-wrap: break-word; color: var(--text-muted); min-height: 100px; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; }
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--card-bg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
         .modal-close { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2.5rem; color: var(--text-muted); cursor: pointer; line-height: 1; }
@@ -79,6 +75,10 @@
         #theme-toggle { background: none; color: var(--header-text); border: 1px solid var(--header-text); padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 300; margin-left: 15px; display: inline-block; opacity: 0.8; transition: all 0.3s ease; }
         #theme-toggle:hover { color: #fff; background-color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: translateY(-3px); }
         
+        /* --- Progress Bar Styles --- */
+        .progress-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.2s ease-in-out; }
+
         @media (max-width: 768px) { .toolbox-layout { flex-direction: column; } }
     </style>
 </head>
@@ -117,7 +117,6 @@
                     <li><a data-tool="ascat-corrector">ASCAT风扫修正</a></li>
                     <li><a data-tool="fnv3-ensemble">FNV3 TC Ensemble</a></li>
                     <li><a data-tool="enm-diagnosis">ENM TC Diagnosis</a></li>
-                    <li><a data-tool="enm-realtime">ENM TC Real-time</a></li>
                 </ul>
             </aside>
             <section class="tool-content">
@@ -245,13 +244,13 @@
                         <button id="run-diagnosis" class="btn-generate" disabled>加载模型中...</button>
                         <button id="enm-help-btn" class="btn-help">?</button>
                     </div>
+                    <div id="model-progress-container" class="progress-container" style="display: none;">
+                         <div id="model-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div id="enm-image-preview-container" style="display: none; margin-top: 1.5rem;">
+                        <img id="enm-preview-image" src="" alt="Uploaded Image Preview" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+                    </div>
                     <div id="diagnosis-results">请等待模型加载完成。</div>
-                </div>
-
-                <div id="enm-realtime" class="tool-card" style="display: none;">
-                    <h2 class="tool-title">ENM TC Real-time</h2>
-                    <button id="fetch-realtime-btn" class="btn-generate">抓取实时图像</button>
-                    <div id="realtime-results-container">点击按钮开始抓取...</div>
                 </div>
 
             </section>
@@ -407,7 +406,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -455,7 +454,8 @@
             function getColorByIntensity(knots) {
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
-                        // --- ENM Diagnosis Tool Logic ---
+            
+            // --- ENM Diagnosis Tool Logic ---
             const runDiagnosisBtn = document.getElementById('run-diagnosis');
             const imageUploadInput = document.getElementById('image-upload');
             const diagnosisResultsEl = document.getElementById('diagnosis-results');
@@ -719,104 +719,6 @@
                 enmHelpCloseBtn.addEventListener('click', closeModal);
                 enmHelpOverlay.addEventListener('click', closeModal);
             }
-            
-            // --- ENM Real-time Tool Logic (No Model) ---
-            const fetchRealtimeBtn = document.getElementById('fetch-realtime-btn');
-            
-            async function runRealtimeAnalysis() {
-                const resultsContainer = document.getElementById('realtime-results-container');
-                fetchRealtimeBtn.disabled = true;
-                fetchRealtimeBtn.textContent = '抓取中...';
-                resultsContainer.innerHTML = '<p>正在抓取实时台风列表...</p>';
-
-                const proxyUrl = 'https://corsproxy.io/?';
-                const mainPageUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/';
-
-                try {
-                    const response = await fetch(proxyUrl + encodeURIComponent(mainPageUrl));
-                    if (!response.ok) throw new Error(`无法抓取台风列表 (Status: ${response.status})`);
-                    const htmlText = await response.text();
-                    
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(htmlText, 'text/html');
-                    const thElements = doc.querySelectorAll('th.IMGTABTH');
-                    const typhoonIds = Array.from(thElements).map(th => th.textContent.match(/T\s*(\d+)/)?.[1]).filter(Boolean);
-
-                    if (typhoonIds.length === 0) {
-                        resultsContainer.innerHTML = '<p>当前没有发现活跃的实时台风。</p>';
-                        return;
-                    }
-
-                    resultsContainer.innerHTML = `<p>发现 ${typhoonIds.length} 个活跃台风: ${typhoonIds.join(', ')}。正在逐个寻找并加载最新图像...</p>`;
-                    
-                    const imageFetchPromises = typhoonIds.map(id => findLatestImage(id));
-                    const fetchedImages = await Promise.all(imageFetchPromises);
-                    
-                    resultsContainer.innerHTML = ''; 
-
-                    fetchedImages.forEach(result => {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'realtime-item';
-                        const header = document.createElement('h4');
-                        header.textContent = `台风 ${result.id}`;
-                        itemDiv.appendChild(header);
-
-                        if (result.status === 'success') {
-                            const imgEl = document.createElement('img');
-                            imgEl.src = result.blobUrl;
-                            const resultP = document.createElement('p');
-                            resultP.textContent = `图像加载完毕 (时间: ${result.imageTimeUTC}Z)`;
-                            
-                            itemDiv.appendChild(imgEl);
-                            itemDiv.appendChild(resultP);
-                        } else {
-                            const errorP = document.createElement('p');
-                            errorP.style.color = 'red';
-                            errorP.textContent = result.error;
-                            itemDiv.appendChild(errorP);
-                        }
-                        resultsContainer.appendChild(itemDiv);
-                    });
-
-                } catch (e) {
-                    resultsContainer.innerHTML = `<p style="color: red;">抓取过程中出错: ${e.message}</p>`;
-                } finally {
-                    fetchRealtimeBtn.disabled = false;
-                    fetchRealtimeBtn.textContent = '重新抓取';
-                }
-            }
-
-            async function findLatestImage(typhoonId) {
-                let now = new Date();
-                const proxyUrl = 'https://corsproxy.io/?';
-
-                for (let i = 0; i < 48; i++) { // Search last 48 hours
-                    const year = now.getUTCFullYear().toString().slice(-2);
-                    const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-                    const day = now.getUTCDate().toString().padStart(2, '0');
-                    const hour = now.getUTCHours().toString().padStart(2, '0');
-                    const dateStr = `${year}${month}${day}${hour}`;
-                    const imageUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/${typhoonId}/2/512x512/HMW9${dateStr}.${typhoonId}.jpg`;
-                    const proxiedUrl = proxyUrl + encodeURIComponent(imageUrl);
-                    
-                    try {
-                        const response = await fetch(proxiedUrl);
-                        if (response.ok) {
-                            const blob = await response.blob();
-                            if (blob.type.startsWith('image/')) {
-                                return { status: 'success', id: typhoonId, blobUrl: URL.createObjectURL(blob), imageTimeUTC: dateStr };
-                            }
-                        }
-                    } catch (e) { /* Ignore and continue */ }
-                    now.setUTCHours(now.getUTCHours() - 1);
-                }
-                return { status: 'error', id: typhoonId, error: '在过去48小时内未找到可用图像。' };
-            }
-
-            if (fetchRealtimeBtn) {
-                fetchRealtimeBtn.addEventListener('click', runRealtimeAnalysis);
-            }
-            // --- Theme Toggle Logic ---
             const themeToggle = document.getElementById('theme-toggle');
             const body = document.body;
             if (themeToggle) {
