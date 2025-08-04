@@ -27,6 +27,7 @@
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); line-height: 1.7; overflow-x: hidden; position: relative; transition: background-color 0.3s, color 0.3s; }
+        body.modal-open { overflow: hidden; }
         body::before, body::after { content: ''; position: fixed; z-index: -1; opacity: 0.05; transition: transform 0.5s ease-out, background-color 0.3s; }
         body::before { width: 50vw; height: 50vw; background-color: var(--primary-color); border-radius: 50%; top: -20vw; right: -20vw; transform: var(--before-transform, translateY(0)); }
         body::after { width: 0; height: 0; border-style: solid; border-width: 0 0 40vw 40vw; border-color: transparent transparent var(--secondary-color) transparent; bottom: -10vw; left: -10vw; transform: var(--after-transform, rotate(-20deg)); }
@@ -69,8 +70,8 @@
         .btn-help { flex-shrink: 0; background-color: var(--text-muted); color: var(--card-bg-color); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; }
         .btn-help:hover { background-color: var(--primary-color); transform: scale(1.1); }
         #diagnosis-results { margin-top: 1.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; white-space: pre-wrap; word-wrap: break-word; color: var(--text-muted); min-height: 100px; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; }
-        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--card-bg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; display: none; }
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--card-bg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; display: none; }
         .modal-close { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2.5rem; color: var(--text-muted); cursor: pointer; line-height: 1; }
         .modal h3 { margin-top: 0; color: var(--article-title-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem; }
         .modal ul { padding-left: 20px; }
@@ -282,9 +283,9 @@
         <p>&copy; 2025 Enceladus. All Rights Reserved.</p>
     </footer>
     
-    <div id="enm-help-overlay" class="modal-overlay" style="display: none;"></div>
-    <div id="enm-help-modal" class="modal" style="display: none;">
-        <button id="enm-help-close" class="modal-close">&times;</button>
+    <div id="enm-help-overlay" class="modal-overlay"></div>
+    <div id="enm-help-modal" class="modal">
+        <!-- Help content will be injected by JS -->
     </div>
     
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -513,85 +514,56 @@
                 const progressContainer = document.getElementById('model-progress-container');
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
-                let modelBuffer;
 
-                // 1. Fetch the model into an ArrayBuffer and show progress
+                if (runBtn) runBtn.disabled = true;
+                resultsEl.textContent = '准备加载模型...';
+                
                 try {
+                    // Step 1: Fetch the model data with progress indication
                     resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
                     progressBar.style.width = '0%';
+                    
                     const response = await fetch(modelUrl);
                     if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
                     
-                    const contentLength = response.headers.get('content-length');
-                    if (!contentLength) {
-                        modelBuffer = await response.arrayBuffer();
-                    } else {
-                        const total = parseInt(contentLength, 10);
-                        let loaded = 0;
-                        const reader = response.body.getReader();
-                        const chunks = [];
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) break;
-                            chunks.push(value);
-                            loaded += value.length;
-                            const progress = (loaded / total) * 100;
-                            progressBar.style.width = `${progress.toFixed(2)}%`;
-                        }
-                        const fullBuffer = new Uint8Array(loaded);
-                        let offset = 0;
-                        for (const chunk of chunks) {
-                            fullBuffer.set(chunk, offset);
-                            offset += chunk.length;
-                        }
-                        modelBuffer = fullBuffer.buffer;
-                    }
-                    resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
-                } catch(e) {
-                    resultsEl.textContent = `模型文件下载失败: ${e.message}。`;
-                    progressContainer.style.display = 'none';
-                    console.error(e);
-                    return;
-                }
-                
-                // 2. Now, attempt to create the session using the buffer
-                try {
-                    console.log("Attempting to create session with WebGL backend...");
-                    resultsEl.textContent = '正在尝试使用WebGL后端...';
-                    // Use .slice(0) to pass a copy of the buffer
-                    session = await ort.InferenceSession.create(modelBuffer.slice(0), {
-                        executionProviders: ['webgl'],
-                        graphOptimizationLevel: 'all'
+                    const modelBuffer = await response.arrayBuffer();
+                    progressBar.style.width = '100%';
+                    resultsEl.textContent = '模型下载完毕。正在初始化推理会话...';
+
+                    // Step 2: Attempt to create the inference session.
+                    // The library tries providers in order: WebGL first, then WASM as a fallback.
+                    console.log("正在尝试使用 'webgl' 和 'wasm' 后端创建 ONNX 会话...");
+                    resultsEl.textContent = "正在初始化 WebGL 后端...";
+
+                    session = await ort.InferenceSession.create(modelBuffer, { 
+                        executionProviders: ['webgl', 'wasm'],
+                        graphOptimizationLevel: 'all' 
                     });
-                    console.log("Session created successfully with WebGL backend.");
-                } catch (webglError) {
-                    console.warn("WebGL backend failed to initialize.", webglError);
-                    try {
-                        console.log("Attempting to create session with WASM backend as fallback...");
-                        resultsEl.textContent = 'WebGL加载失败，正在尝试WASM备选方案...';
-                        console.log("WebGL 初始化失败，原因：" + error.message);
-                        // Use .slice(0) again to pass a fresh copy of the original buffer
-                        session = await ort.InferenceSession.create(modelBuffer.slice(0), {
-                            executionProviders: ['wasm'],
-                            graphOptimizationLevel: 'all'
-                        });
-                        console.log("Session created successfully with WASM backend.");
-                    } catch (wasmError) {
-                        console.error("Fallback WASM backend also failed to initialize.", wasmError);
-                        resultsEl.textContent = `模型加载失败：所有可用后端 (WebGL, WASM) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
-                        progressContainer.style.display = 'none';
-                        console.error("Original WebGL Error:", webglError);
-                        return;
+
+                    // Check which backend was actually chosen by the library
+                    const backend = session.handler.backend;
+                    console.log(`ONNX 会话创建成功，使用的后端: ${backend}`);
+                    resultsEl.textContent = `模型加载成功！(后端: ${backend})。请上传图片。`;
+
+                    if (runBtn) {
+                        runBtn.disabled = false;
+                        runBtn.textContent = '开始分析';
                     }
+
+                } catch (error) {
+                    // This block will catch any error during fetch or session creation.
+                    console.error("加载或初始化 ONNX 模型时发生严重错误:", error);
+                    resultsEl.textContent = `模型加载失败。请打开浏览器开发者控制台 (F12) 查看详细错误信息。错误: ${error.message}`;
+                    if (runBtn) {
+                        runBtn.textContent = '加载失败';
+                    }
+                } finally {
+                    // Hide progress bar after a short delay
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                    }, 1500);
                 }
-                
-                resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                if (runBtn) {
-                    runBtn.disabled = false;
-                    runBtn.textContent = '开始分析';
-                }
-                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
 
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
@@ -744,7 +716,7 @@
                 `;
                 enmHelpModal.innerHTML = helpContent;
                 
-                const enmHelpCloseBtn = document.getElementById('enm-help-close');
+                const enmHelpCloseBtn = document.querySelector('#enm-help-modal .modal-close');
 
                 const openModal = () => {
                     enmHelpModal.style.display = 'block';
@@ -758,7 +730,7 @@
                 };
 
                 enmHelpBtn.addEventListener('click', openModal);
-                enmHelpCloseBtn.addEventListener('click', closeModal);
+                if (enmHelpCloseBtn) enmHelpCloseBtn.addEventListener('click', closeModal);
                 enmHelpOverlay.addEventListener('click', closeModal);
             }
 
@@ -880,7 +852,10 @@
                 }
                 
                 // If no image was found after 72 attempts
-                card.querySelector('.placeholder').textContent = `无法找到 ${id} 的图像`;
+                const placeholder = card.querySelector('.placeholder');
+                if (placeholder) {
+                    placeholder.textContent = `无法找到 ${id} 的图像`;
+                }
             }
 
             function checkImage(url) {
@@ -918,5 +893,3 @@
 
 </body>
 </html>
-" and I am asking you to make the following changes to the selected code.
-Change the title to "工具 - Enceladus Blo
