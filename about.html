@@ -242,10 +242,10 @@
                         <input type="file" id="image-upload" multiple accept="image/jpeg, image/png">
                     </div>
                     <div class="button-group">
-                        <button id="run-diagnosis" class="btn-generate" disabled>模型功能已禁用</button>
+                        <button id="run-diagnosis" class="btn-generate" disabled>加载模型中...</button>
                         <button id="enm-help-btn" class="btn-help">?</button>
                     </div>
-                    <div id="diagnosis-results">模型功能已禁用。</div>
+                    <div id="diagnosis-results">请等待模型加载完成。</div>
                 </div>
 
                 <div id="enm-realtime" class="tool-card" style="display: none;">
@@ -455,6 +455,270 @@
             function getColorByIntensity(knots) {
                 if (knots > 137) return "#maroon"; if (knots > 112) return "#pink"; if (knots > 97) return "orangered"; if (knots > 82) return "darkgoldenrod"; if (knots > 62) return "lightyellow"; if (knots > 32) return "cyan"; if (knots > 23) return "lightblue"; return "darkgrey";
             }
+                        // --- ENM Diagnosis Tool Logic ---
+            const runDiagnosisBtn = document.getElementById('run-diagnosis');
+            const imageUploadInput = document.getElementById('image-upload');
+            const diagnosisResultsEl = document.getElementById('diagnosis-results');
+            const imagePreviewContainer = document.getElementById('enm-image-preview-container');
+            const previewImage = document.getElementById('enm-preview-image');
+            
+            let session; // To hold the ONNX session
+
+            const class_ids = [15, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+            const temperature = 0.89;
+            const pred_anchor = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+            const ci_anchor = [23, 30, 35, 45, 55, 65, 77, 90, 102, 115, 128, 143, 163, 193];
+            const MODEL_INPUT_SIZE = 512;
+
+            const polarize_probs = (probs, temp) => {
+                if (temp === 1.0) return probs;
+                const scaled = probs.map(p => Math.pow(p, 1 / temp));
+                const sum = scaled.reduce((a, b) => a + b, 0);
+                return scaled.map(p => p / sum);
+            };
+            const linearInterpolate = (x, x_points, y_points) => {
+                if (x <= x_points[0]) return y_points[0];
+                if (x >= x_points[x_points.length - 1]) return y_points[y_points.length - 1];
+                let i = 1;
+                while (x > x_points[i]) i++;
+                const slope = (y_points[i] - y_points[i - 1]) / (x_points[i] - x_points[i - 1]);
+                return y_points[i - 1] + slope * (x - x_points[i - 1]);
+            };
+            const pred_to_ci = (pred) => linearInterpolate(pred, pred_anchor, ci_anchor);
+
+            async function loadModel() {
+                const runBtn = document.getElementById('run-diagnosis');
+                const resultsEl = document.getElementById('diagnosis-results');
+                const progressContainer = document.getElementById('model-progress-container');
+                const progressBar = document.getElementById('model-progress-bar');
+                const modelUrl = './epoch15.onnx';
+
+                let modelBuffer;
+
+                try {
+                    resultsEl.textContent = '开始下载模型文件...';
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = '0%';
+                    const response = await fetch(modelUrl);
+                    if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+                    
+                    const contentLength = response.headers.get('content-length');
+                    if (!contentLength) {
+                        modelBuffer = await response.arrayBuffer();
+                    } else {
+                        const total = parseInt(contentLength, 10);
+                        let loaded = 0;
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(value);
+                            loaded += value.length;
+                            const progress = (loaded / total) * 100;
+                            progressBar.style.width = `${progress.toFixed(2)}%`;
+                        }
+                        const fullBuffer = new Uint8Array(loaded);
+                        let offset = 0;
+                        for (const chunk of chunks) {
+                            fullBuffer.set(chunk, offset);
+                            offset += chunk.length;
+                        }
+                        modelBuffer = fullBuffer.buffer;
+                    }
+                    resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
+                } catch(e) {
+                    resultsEl.textContent = `模型文件下载失败: ${e.message}。`;
+                    progressContainer.style.display = 'none';
+                    console.error(e);
+                    return;
+                }
+                
+                try {
+                    console.log("Attempting to create session with WASM backend...");
+                    resultsEl.textContent = '正在尝试使用WASM后端...';
+                    session = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    console.log("Session created successfully with WASM backend.");
+                } catch (wasmError) {
+                    console.warn("WASM backend failed to initialize.", wasmError);
+                    try {
+                        console.log("Attempting to create session with WebGL backend as fallback...");
+                        resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
+                        session = await ort.InferenceSession.create(modelBuffer, {
+                            executionProviders: ['webgl'],
+                            graphOptimizationLevel: 'all'
+                        });
+                        console.log("Session created successfully with WebGL backend.");
+                    } catch (webglError) {
+                        console.error("Fallback WebGL backend also failed to initialize.", webglError);
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WASM, WebGL) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
+                        progressContainer.style.display = 'none';
+                        console.error("Original WASM Error:", wasmError);
+                        return;
+                    }
+                }
+                
+                resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
+                runBtn.disabled = false;
+                runBtn.textContent = '开始分析';
+                setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
+            }
+
+            const enmToolObserver = new MutationObserver((mutationsList, observer) => {
+                for(const mutation of mutationsList) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const enmCard = document.getElementById('enm-diagnosis');
+                        if (enmCard.style.display !== 'none' && !session) {
+                             loadModel();
+                        }
+                    }
+                }
+            });
+            const enmCard = document.getElementById('enm-diagnosis');
+            if(enmCard) {
+                enmToolObserver.observe(enmCard, { attributes: true });
+                if(document.querySelector('.tool-list a.active[data-tool="enm-diagnosis"]')) {
+                    loadModel();
+                }
+            }
+
+            async function preprocessImage(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = MODEL_INPUT_SIZE;
+                            canvas.height = MODEL_INPUT_SIZE;
+                            const ctx = canvas.getContext('2d');
+                            const ratio = Math.min(MODEL_INPUT_SIZE / img.width, MODEL_INPUT_SIZE / img.height);
+                            const newWidth = Math.round(img.width * ratio);
+                            const newHeight = Math.round(img.height * ratio);
+                            const padX = (MODEL_INPUT_SIZE - newWidth) / 2;
+                            const padY = (MODEL_INPUT_SIZE - newHeight) / 2;
+                            ctx.fillStyle = 'rgb(114, 114, 114)';
+                            ctx.fillRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                            ctx.drawImage(img, padX, padY, newWidth, newHeight);
+                            const imageData = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+                            const { data } = imageData;
+                            const inputTensor = new Float32Array(1 * 3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
+                            for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
+                                inputTensor[i] = data[i * 4] / 255.0;
+                                inputTensor[i + MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 1] / 255.0;
+                                inputTensor[i + 2 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE] = data[i * 4 + 2] / 255.0;
+                            }
+                            resolve(inputTensor);
+                        };
+                        img.onerror = reject;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            async function runDiagnosis() {
+                const files = imageUploadInput.files;
+
+                if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+                if (previewImage) previewImage.src = '';
+
+                if (!files || files.length === 0) {
+                    diagnosisResultsEl.textContent = '请先选择一个或多个图像文件。';
+                    return;
+                }
+                
+                if (!session) {
+                    diagnosisResultsEl.textContent = '模型尚未加载完成，请稍候。';
+                    return;
+                }
+
+                if (files.length === 1 && imagePreviewContainer && previewImage) {
+                    previewImage.src = URL.createObjectURL(files[0]);
+                    imagePreviewContainer.style.display = 'block';
+                }
+
+                runDiagnosisBtn.disabled = true;
+                runDiagnosisBtn.textContent = '分析中...';
+                diagnosisResultsEl.textContent = '正在处理图像并运行模型...';
+                let resultsText = '按时间顺序的推理结果：';
+
+                const analysisPromises = Array.from(files).map(async (file) => {
+                    try {
+                        const preprocessedData = await preprocessImage(file);
+                        const tensor = new ort.Tensor('float32', preprocessedData, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
+                        const feeds = { 'images': tensor };
+                        const results = await session.run(feeds);
+                        const outputTensor = results.output0;
+                        const probs = Array.from(outputTensor.data);
+                        const polarizedProbs = polarize_probs(probs, temperature);
+                        const weighted_pred = polarizedProbs.reduce((sum, prob, i) => sum + prob * class_ids[i], 0);
+                        const ci_value = pred_to_ci(weighted_pred);
+                        return `${file.name}: Int=${ci_value.toFixed(1)}KT\n`;
+                    } catch (e) {
+                        console.error(`处理 ${file.name} 时出错:`, e);
+                        return `${file.name}: 分析失败 - ${e.message}`;
+                    }
+                });
+                
+                const resolvedResults = await Promise.all(analysisPromises);
+                resultsText += resolvedResults.join('\n');
+
+                diagnosisResultsEl.textContent = resultsText;
+                runDiagnosisBtn.disabled = false;
+                runDiagnosisBtn.textContent = '开始分析';
+            }
+            if(runDiagnosisBtn) {
+                 runDiagnosisBtn.addEventListener('click', runDiagnosis);
+            }
+            
+            const enmHelpBtn = document.getElementById('enm-help-btn');
+            const enmHelpModal = document.getElementById('enm-help-modal');
+            const enmHelpOverlay = document.getElementById('enm-help-overlay');
+            
+            if (enmHelpBtn) {
+                const helpContent = `
+                                <button id="enm-help-close" class="modal-close">&times;</button>
+                                <h3>工具简介</h3>
+                                <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
+                                <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
+                                <h3>使用说明</h3>
+                                <ol>
+                                    <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
+                                    <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
+                                    <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
+                                </ol>
+                                <h3>注意事项 (Disclaimer)</h3>
+                                <ul>
+                                    <li><strong>实验性项目</strong>：本玩具为实验性项目，其结果仅供交流学习，不代表任何个体和机构的观点。</li>
+                                    <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
+                                    <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，有时可以超过15%。</li>
+                                    <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
+                                </ul>
+                `;
+                enmHelpModal.innerHTML = helpContent;
+                
+                const enmHelpCloseBtn = document.getElementById('enm-help-close');
+
+                const openModal = () => {
+                    enmHelpModal.style.display = 'block';
+                    enmHelpOverlay.style.display = 'block';
+                    document.body.classList.add('modal-open');
+                };
+                const closeModal = () => {
+                    enmHelpModal.style.display = 'none';
+                    enmHelpOverlay.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                };
+
+                enmHelpBtn.addEventListener('click', openModal);
+                enmHelpCloseBtn.addEventListener('click', closeModal);
+                enmHelpOverlay.addEventListener('click', closeModal);
+            }
             
             // --- ENM Real-time Tool Logic (No Model) ---
             const fetchRealtimeBtn = document.getElementById('fetch-realtime-btn');
@@ -551,51 +815,6 @@
 
             if (fetchRealtimeBtn) {
                 fetchRealtimeBtn.addEventListener('click', runRealtimeAnalysis);
-            }
-
-            // --- Help Modal Logic (Remains for context) ---
-            const enmHelpBtn = document.getElementById('enm-help-btn');
-            const enmHelpModal = document.getElementById('enm-help-modal');
-            const enmHelpOverlay = document.getElementById('enm-help-overlay');
-            
-            if (enmHelpBtn) {
-                const helpContent = `
-                        <button id="enm-help-close" class="modal-close">&times;</button>
-                        <h3>工具简介</h3>
-                        <p>传统的热带气旋强度分析（如德沃夏克分析法）依赖人工判读，存在一定的主观性和滞后性。<strong>ENM (Enceladus Method) TC Diagnosis</strong> 工具采用深度学习模型，旨在通过计算机视觉技术，对卫星云图进行量化、一致的特征分析，从而提供一个客观、自动化的强度评估参考。</p>
-                        <p>与传统方法相比，AI模型能更稳定地测量云顶温度、眼墙结构、螺旋云带等关键特征，并能学习和识别一些特殊形态（如季风低压、针眼气旋）的细微差异，以期获得更精确的评价。</p>
-                        <h3>使用说明</h3>
-                        <ol>
-                            <li><strong>上传图像</strong>：点击上传按钮，选择一张或多张热带气旋的红外（IR）卫星云图。</li>
-                            <li><strong>开始分析</strong>：点击“开始分析”按钮，网页端的AI模型将对每一张图片进行推理。</li>
-                            <li><strong>查看结果</strong>：模型根据云图特征计算出的平均猜测（Average Guess）风速值（单位：KT）。</li>
-                        </ol>
-                        <h3>注意事项 (Disclaimer)</h3>
-                        <ul>
-                            <li><strong>实验性项目</strong>：本玩具为实验性项目，其结果仅供交流学习，不代表任何个体和机构的观点。</li>
-                            <li><strong>数据源敏感性</strong>：模型主要使用Digital Typhoon的卫星图像进行训练，理论上其他源的云图也可以，但可能会引入未知误差。</li>
-                            <li><strong>单帧局限性</strong>：对单帧云图的分析可能存在波动，有时可以超过15%。</li>
-                            <li><strong>环境干扰</strong>：当热带气旋环流较小，令图像中存在其他天气系统（如其他气旋、季风槽等）干扰时，结果可能失真，有时需要缩放处理。</li>
-                        </ul>
-                `;
-                enmHelpModal.innerHTML = helpContent;
-                
-                const enmHelpCloseBtn = document.getElementById('enm-help-close');
-
-                const openModal = () => {
-                    enmHelpModal.style.display = 'block';
-                    enmHelpOverlay.style.display = 'block';
-                    document.body.classList.add('modal-open');
-                };
-                const closeModal = () => {
-                    enmHelpModal.style.display = 'none';
-                    enmHelpOverlay.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                };
-
-                enmHelpBtn.addEventListener('click', openModal);
-                enmHelpCloseBtn.addEventListener('click', closeModal);
-                enmHelpOverlay.addEventListener('click', closeModal);
             }
             // --- Theme Toggle Logic ---
             const themeToggle = document.getElementById('theme-toggle');
