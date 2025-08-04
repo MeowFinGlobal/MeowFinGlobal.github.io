@@ -427,7 +427,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -514,8 +514,7 @@
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
 
-                let modelBuffer;
-
+                // First, fetch the model to show progress, even though we'll pass the URL to create()
                 try {
                     resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
@@ -525,27 +524,18 @@
                     
                     const contentLength = response.headers.get('content-length');
                     if (!contentLength) {
-                        modelBuffer = await response.arrayBuffer();
+                        await response.arrayBuffer(); // consume body
                     } else {
                         const total = parseInt(contentLength, 10);
                         let loaded = 0;
                         const reader = response.body.getReader();
-                        const chunks = [];
                         while (true) {
                             const { done, value } = await reader.read();
                             if (done) break;
-                            chunks.push(value);
                             loaded += value.length;
                             const progress = (loaded / total) * 100;
                             progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
-                        const fullBuffer = new Uint8Array(loaded);
-                        let offset = 0;
-                        for (const chunk of chunks) {
-                            fullBuffer.set(chunk, offset);
-                            offset += chunk.length;
-                        }
-                        modelBuffer = fullBuffer.buffer;
                     }
                     resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
                 } catch(e) {
@@ -555,10 +545,11 @@
                     return;
                 }
                 
+                // Now, attempt to create the session, passing the URL to avoid buffer reuse issues.
                 try {
                     console.log("Attempting to create session with WASM backend...");
                     resultsEl.textContent = '正在尝试使用WASM后端...';
-                    session = await ort.InferenceSession.create(modelBuffer, {
+                    session = await ort.InferenceSession.create(modelUrl, {
                         executionProviders: ['wasm'],
                         graphOptimizationLevel: 'all'
                     });
@@ -568,7 +559,7 @@
                     try {
                         console.log("Attempting to create session with WebGL backend as fallback...");
                         resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
-                        session = await ort.InferenceSession.create(modelBuffer, {
+                        session = await ort.InferenceSession.create(modelUrl, {
                             executionProviders: ['webgl'],
                             graphOptimizationLevel: 'all'
                         });
@@ -583,8 +574,10 @@
                 }
                 
                 resultsEl.textContent = '模型加载成功！请上传图片后点击分析按钮。';
-                runBtn.disabled = false;
-                runBtn.textContent = '开始分析';
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = '开始分析';
+                }
                 setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
             }
 
@@ -819,8 +812,7 @@
                 const statusEl = document.getElementById(`analysis-status-${id}`);
                 try {
                     if (!session) {
-                        // This will trigger the model loading process, which shows UI on the ENM tab.
-                        // It's a shared resource, so this is acceptable for now.
+                        statusEl.textContent = '加载ENM自动定强模型中...';
                         await loadModel();
                     }
                     if (!session) {
@@ -863,7 +855,7 @@
                     const { found, img } = await checkImage(proxyImageUrl);
                     if (found) {
                         const timestamp = `${yearFull}-${month}-${day} ${hour}:00 UTC`;
-                        card.innerHTML = `<img src="${img.src}" alt="Typhoon ${id}"><p>Typhoon ${id}</p><p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">${timestamp}</p><p id="analysis-status-${id}" style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-color); min-height: 40px;">加载ENM自动定强模型中...</p>`;
+                        card.innerHTML = `<img src="${img.src}" alt="Typhoon ${id}"><p>Typhoon ${id}</p><p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">${timestamp}</p><p id="analysis-status-${id}" style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-color); min-height: 40px;">正在准备ENM模型...</p>`;
                         
                         // Run analysis on the found image
                         runEnmAnalysisOnImage(id, img);
