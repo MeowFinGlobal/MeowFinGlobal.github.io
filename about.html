@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <script>
         // Set the path to the ONNX runtime WebAssembly files from the CDN
         ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
@@ -529,9 +529,40 @@
                     
                     const response = await fetch(modelUrl);
                     if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+
+                    const contentLength = response.headers.get('content-length');
+                    if (!contentLength || !response.body) {
+                        // Fallback for browsers or servers that don't support streams/content-length
+                        console.warn("无法获取内容长度或响应流，进度条将不会实时更新。");
+                        modelBuffer = await response.arrayBuffer();
+                        progressBar.style.width = '100%';
+                    } else {
+                        const total = parseInt(contentLength, 10);
+                        let loaded = 0;
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        
+                        while(true) {
+                            const { done, value } = await reader.read();
+                            if (done) {
+                                break;
+                            }
+                            chunks.push(value);
+                            loaded += value.length;
+                            const progress = (loaded / total) * 100;
+                            progressBar.style.width = `${progress.toFixed(2)}%`;
+                        }
+
+                        // Combine the chunks into a single Uint8Array
+                        const fullBuffer = new Uint8Array(loaded);
+                        let offset = 0;
+                        for (const chunk of chunks) {
+                            fullBuffer.set(chunk, offset);
+                            offset += chunk.length;
+                        }
+                        modelBuffer = fullBuffer.buffer;
+                    }
                     
-                    modelBuffer = await response.arrayBuffer();
-                    progressBar.style.width = '100%';
                     resultsEl.textContent = '模型下载完毕。正在初始化推理会话...';
                 } catch (error) {
                     console.error("下载 ONNX 模型时发生错误:", error);
@@ -572,7 +603,7 @@
 
                 // Step 4: Confirm success and update UI
                 console.log(`ONNX 会话创建成功。`);
-                resultsEl.textContent = `模型加载成功！。请上传图片。`;
+                resultsEl.textContent = `模型加载成功！请上传图片。`;
 
                 if (runBtn) {
                     runBtn.disabled = false;
@@ -783,7 +814,7 @@
                     });
 
                     if (tcIds.length === 0) {
-                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。';
+                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋/浏览器不支持。';
                         fetchTcBtn.disabled = false;
                         return;
                     }
