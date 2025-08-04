@@ -885,7 +885,7 @@
                     const dateString = `${year}${month}${day}${hour}`;
                     
                     const imageUrl = `${baseUrl}${id}/2/512x512/HMW9${dateString}.${id}.jpg`;
-                    const proxyImageUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+                    const proxyImageUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
                     
                     const { found, img } = await checkImage(proxyImageUrl);
                     if (found) {
@@ -922,7 +922,6 @@
             if (fetchTcBtn) {
                 fetchTcBtn.addEventListener('click', fetchTcData);
             }
-
 
             const themeToggle = document.getElementById('theme-toggle');
             const body = document.body;
