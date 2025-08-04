@@ -570,6 +570,7 @@
                     try {
                         console.log("Attempting to create session with WASM backend as fallback...");
                         resultsEl.textContent = 'WebGL加载失败，正在尝试WASM备选方案...';
+                        alert("WebGL 初始化失败，原因：" + webglErr.message || webglErr.toString());
                         // Use .slice(0) again to pass a fresh copy of the original buffer
                         session = await ort.InferenceSession.create(modelBuffer.slice(0), {
                             executionProviders: ['wasm'],
