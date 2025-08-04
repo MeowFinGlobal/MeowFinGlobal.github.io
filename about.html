@@ -792,7 +792,7 @@
                 tcStatusEl.textContent = '正在抓取 Digital Typhoon 主页...';
                 tcResultsEl.innerHTML = '';
                 const targetUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/';
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
                 try {
                     const response = await fetch(proxyUrl);
