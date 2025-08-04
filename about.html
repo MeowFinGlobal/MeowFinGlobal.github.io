@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script>
+        // Set the path to the ONNX runtime WebAssembly files from the CDN
+        ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+    </script>
     <style>
         :root {
             --bg-color: #f8f9fa; --text-color: #212529; --primary-color: #4a90e2; --secondary-color: #f5a623;
@@ -423,7 +427,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -784,7 +788,7 @@
                     });
 
                     if (tcIds.length === 0) {
-                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。（仅能保证在Chrome浏览器上正常加载...）';
+                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。';
                         fetchTcBtn.disabled = false;
                         return;
                     }
@@ -835,7 +839,7 @@
                     statusEl.innerHTML = `分析强度: <strong>${ci_value.toFixed(1)} KT</strong><br><span style="font-size:0.8em; color: var(--text-muted);">注意: 模型定强有时会受干扰，仅供参考。</span>`;
                 } catch (e) {
                     console.error(`Error during ENM analysis for ${id}:`, e);
-                    statusEl.textContent = `分析失败: ${e.message}，请尝试再按一次按钮刷新。`;
+                    statusEl.textContent = `分析失败: ${e.message}`;
                 }
             }
 
