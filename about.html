@@ -571,9 +571,8 @@
                 }
 
                 // Step 4: Confirm success and update UI
-                const backend = session.activeExecutionProviders[0];
-                console.log(`ONNX 会话创建成功，使用的后端: ${backend}`);
-                resultsEl.textContent = `模型加载成功！(后端: ${backend})。请上传图片。`;
+                console.log(`ONNX 会话创建成功。`);
+                resultsEl.textContent = `模型加载成功！。请上传图片。`;
 
                 if (runBtn) {
                     runBtn.disabled = false;
