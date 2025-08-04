@@ -835,7 +835,7 @@
                     statusEl.innerHTML = `分析强度: <strong>${ci_value.toFixed(1)} KT</strong><br><span style="font-size:0.8em; color: var(--text-muted);">注意: 模型定强有时会受干扰，仅供参考。</span>`;
                 } catch (e) {
                     console.error(`Error during ENM analysis for ${id}:`, e);
-                    statusEl.textContent = `分析失败: ${e.message}`;
+                    statusEl.textContent = `分析失败: ${e.message}，请尝试再按一次按钮刷新。`;
                 }
             }
 
