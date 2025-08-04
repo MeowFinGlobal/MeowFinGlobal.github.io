@@ -133,7 +133,7 @@
                 <div id="planetary-calculator" class="tool-card">
                     <h2 class="tool-title">行星参数计算器</h2>
                     <div class="form-group">
-                        <label for="mass">行星质量 (地球倍数, $M_⊕$)</label>
+                        <label for="mass">行星质量 (地球倍数, M⊕)</label>
                         <input type="number" id="mass" value="1">
                     </div>
                     <div class="form-group">
@@ -141,11 +141,11 @@
                         <input type="number" id="radius" value="6371">
                     </div>
                     <div class="form-group">
-                        <label for="stellar-mass">恒星质量 (太阳倍数, $M_☉$)</label>
+                        <label for="stellar-mass">恒星质量 (太阳倍数, M☉)</label>
                         <input type="number" id="stellar-mass" value="1">
                     </div>
                     <div class="form-group">
-                        <label for="stellar-luminosity">恒星光度 (太阳倍数, $L_☉$)</label>
+                        <label for="stellar-luminosity">恒星光度 (太阳倍数, L☉)</label>
                         <input type="number" id="stellar-luminosity" value="1">
                     </div>
                     <div class="form-group">
@@ -392,7 +392,7 @@
                     const world = await fetch("https://unpkg.com/world-atlas@2/countries-110m.json").then(res => res.json());
                     const { fileUrl, fileName } = await findLatestFnv3File(statusEl);
                     statusEl.textContent = `已找到最新文件: ${fileName}，正在抓取和处理...`;
-                    const proxyUrl = 'https://corsproxy.io/?';
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
                     const csvText = await fetch(proxyUrl + encodeURIComponent(fileUrl)).then(res => { if (!res.ok) throw new Error(`无法抓取文件 ${fileName}`); return res.text(); });
                     const tracks = processFnv3Csv(csvText, filters);
                     if (tracks.size === 0) { statusEl.textContent = `在 ${fileName} 中未找到符合筛选条件的气旋路径。`; return; }
@@ -404,7 +404,7 @@
                 } catch (error) { console.error('FNV3工具出错:', error); statusEl.textContent = `错误: ${error.message}`; }
             }
             async function findLatestFnv3File(statusEl) {
-                const proxyUrl = 'https://corsproxy.io/?'; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
+                const proxyUrl = 'https://api.allorigins.win/raw?url='; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
                 const baseUrl = 'https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/';
                 for (let i = 0; i < 20; i++) {
                     const year = now.getUTCFullYear(), month = (now.getUTCMonth() + 1).toString().padStart(2, '0'), day = now.getUTCDate().toString().padStart(2, '0'), hour = now.getUTCHours().toString().padStart(2, '0');
@@ -746,11 +746,11 @@
                 fetchTcBtn.disabled = true;
                 tcStatusEl.textContent = '正在抓取 Digital Typhoon 主页...';
                 tcResultsEl.innerHTML = '';
-                const proxyUrl = 'https://corsproxy.io/?';
                 const targetUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/';
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
                 try {
-                    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+                    const response = await fetch(proxyUrl);
                     if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
                     const htmlText = await response.text();
                     
