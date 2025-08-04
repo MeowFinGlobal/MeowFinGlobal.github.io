@@ -557,30 +557,30 @@
                 
                 // 2. Now, attempt to create the session using the buffer
                 try {
-                    console.log("Attempting to create session with WASM backend...");
-                    resultsEl.textContent = '正在尝试使用WASM后端...';
+                    console.log("Attempting to create session with WebGL backend...");
+                    resultsEl.textContent = '正在尝试使用WebGL后端...';
                     // Use .slice(0) to pass a copy of the buffer
                     session = await ort.InferenceSession.create(modelBuffer.slice(0), {
-                        executionProviders: ['wasm'],
+                        executionProviders: ['webgl'],
                         graphOptimizationLevel: 'all'
                     });
-                    console.log("Session created successfully with WASM backend.");
-                } catch (wasmError) {
-                    console.warn("WASM backend failed to initialize.", wasmError);
+                    console.log("Session created successfully with WebGL backend.");
+                } catch (webglError) {
+                    console.warn("WebGL backend failed to initialize.", webglError);
                     try {
-                        console.log("Attempting to create session with WebGL backend as fallback...");
-                        resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
+                        console.log("Attempting to create session with WASM backend as fallback...");
+                        resultsEl.textContent = 'WebGL加载失败，正在尝试WASM备选方案...';
                         // Use .slice(0) again to pass a fresh copy of the original buffer
                         session = await ort.InferenceSession.create(modelBuffer.slice(0), {
-                            executionProviders: ['webgl'],
+                            executionProviders: ['wasm'],
                             graphOptimizationLevel: 'all'
                         });
-                        console.log("Session created successfully with WebGL backend.");
-                    } catch (webglError) {
-                        console.error("Fallback WebGL backend also failed to initialize.", webglError);
-                        resultsEl.textContent = `模型加载失败：所有可用后端 (WASM, WebGL) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
+                        console.log("Session created successfully with WASM backend.");
+                    } catch (wasmError) {
+                        console.error("Fallback WASM backend also failed to initialize.", wasmError);
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WebGL, WASM) 均初始化失败。请确保浏览器版本较新或检查控制台错误。`;
                         progressContainer.style.display = 'none';
-                        console.error("Original WASM Error:", wasmError);
+                        console.error("Original WebGL Error:", webglError);
                         return;
                     }
                 }
@@ -916,4 +916,4 @@
     </script>
 
 </body>
-</ht
+</html>
