@@ -427,7 +427,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -513,8 +513,9 @@
                 const progressContainer = document.getElementById('model-progress-container');
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
+                let modelBuffer;
 
-                // First, fetch the model to show progress, even though we'll pass the URL to create()
+                // 1. Fetch the model into an ArrayBuffer and show progress
                 try {
                     resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
@@ -524,18 +525,27 @@
                     
                     const contentLength = response.headers.get('content-length');
                     if (!contentLength) {
-                        await response.arrayBuffer(); // consume body
+                        modelBuffer = await response.arrayBuffer();
                     } else {
                         const total = parseInt(contentLength, 10);
                         let loaded = 0;
                         const reader = response.body.getReader();
+                        const chunks = [];
                         while (true) {
                             const { done, value } = await reader.read();
                             if (done) break;
+                            chunks.push(value);
                             loaded += value.length;
                             const progress = (loaded / total) * 100;
                             progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
+                        const fullBuffer = new Uint8Array(loaded);
+                        let offset = 0;
+                        for (const chunk of chunks) {
+                            fullBuffer.set(chunk, offset);
+                            offset += chunk.length;
+                        }
+                        modelBuffer = fullBuffer.buffer;
                     }
                     resultsEl.textContent = '模型文件下载完毕，正在初始化推理引擎...';
                 } catch(e) {
@@ -545,11 +555,12 @@
                     return;
                 }
                 
-                // Now, attempt to create the session, passing the URL to avoid buffer reuse issues.
+                // 2. Now, attempt to create the session using the buffer
                 try {
                     console.log("Attempting to create session with WASM backend...");
                     resultsEl.textContent = '正在尝试使用WASM后端...';
-                    session = await ort.InferenceSession.create(modelUrl, {
+                    // Use .slice(0) to pass a copy of the buffer
+                    session = await ort.InferenceSession.create(modelBuffer.slice(0), {
                         executionProviders: ['wasm'],
                         graphOptimizationLevel: 'all'
                     });
@@ -559,7 +570,8 @@
                     try {
                         console.log("Attempting to create session with WebGL backend as fallback...");
                         resultsEl.textContent = 'WASM加载失败，正在尝试WebGL备选方案...';
-                        session = await ort.InferenceSession.create(modelUrl, {
+                        // Use .slice(0) again to pass a fresh copy of the original buffer
+                        session = await ort.InferenceSession.create(modelBuffer.slice(0), {
                             executionProviders: ['webgl'],
                             graphOptimizationLevel: 'all'
                         });
@@ -904,4 +916,4 @@
     </script>
 
 </body>
-</html>
+</ht
