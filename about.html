@@ -79,6 +79,15 @@
         .progress-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
         .progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.2s ease-in-out; }
 
+        /* --- TC Real-time Styles --- */
+        #tc-real-time-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .tc-card { background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; padding: 1rem; transition: all 0.3s ease; }
+        .tc-card:hover { transform: translateY(-5px); box-shadow: 0 6px 20px var(--card-shadow); }
+        .tc-card img { max-width: 100%; height: auto; border-radius: 4px; background-color: #000; }
+        .tc-card p { margin-top: 0.75rem; font-weight: bold; color: var(--primary-color); }
+        .tc-card .placeholder { width: 100%; aspect-ratio: 1/1; background-color: var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: var(--text-muted); border-radius: 4px; }
+
+
         @media (max-width: 768px) { .toolbox-layout { flex-direction: column; } }
     </style>
 </head>
@@ -117,6 +126,7 @@
                     <li><a data-tool="ascat-corrector">ASCAT风扫修正</a></li>
                     <li><a data-tool="fnv3-ensemble">FNV3 TC Ensemble</a></li>
                     <li><a data-tool="enm-diagnosis">ENM TC Diagnosis</a></li>
+                    <li><a data-tool="tc-real-time">TC Real-time</a></li>
                 </ul>
             </aside>
             <section class="tool-content">
@@ -251,6 +261,13 @@
                         <img id="enm-preview-image" src="" alt="Uploaded Image Preview" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                     <div id="diagnosis-results">请等待模型加载完成。</div>
+                </div>
+
+                <div id="tc-real-time" class="tool-card" style="display: none;">
+                    <h2 class="tool-title">TC Real-time Information</h2>
+                    <button id="fetch-tc-data" class="btn-generate">获取实时数据</button>
+                    <div id="tc-real-time-status" style="margin-top: 1rem;">点击按钮开始获取...</div>
+                    <div id="tc-real-time-results"></div>
                 </div>
 
             </section>
@@ -719,6 +736,109 @@
                 enmHelpCloseBtn.addEventListener('click', closeModal);
                 enmHelpOverlay.addEventListener('click', closeModal);
             }
+
+            // --- TC Real-time Logic ---
+            const fetchTcBtn = document.getElementById('fetch-tc-data');
+            const tcStatusEl = document.getElementById('tc-real-time-status');
+            const tcResultsEl = document.getElementById('tc-real-time-results');
+
+            async function fetchTcData() {
+                fetchTcBtn.disabled = true;
+                tcStatusEl.textContent = '正在抓取 Digital Typhoon 主页...';
+                tcResultsEl.innerHTML = '';
+                const proxyUrl = 'https://corsproxy.io/?';
+                const targetUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/';
+
+                try {
+                    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+                    if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+                    const htmlText = await response.text();
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlText, 'text/html');
+                    
+                    const headers = doc.querySelectorAll('th.IMGTABTH');
+                    const tcIds = [];
+                    const idRegex = /T\s+(\d+)/;
+
+                    headers.forEach(th => {
+                        const match = th.textContent.match(idRegex);
+                        if (match && match[1]) {
+                            tcIds.push(match[1]);
+                        }
+                    });
+
+                    if (tcIds.length === 0) {
+                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。';
+                        fetchTcBtn.disabled = false;
+                        return;
+                    }
+
+                    tcStatusEl.textContent = `发现 ${tcIds.length} 个活跃气旋，正在查找最新图像...`;
+                    
+                    // Create placeholder cards
+                    tcIds.forEach(id => {
+                        const card = document.createElement('div');
+                        card.className = 'tc-card';
+                        card.id = `tc-card-${id}`;
+                        card.innerHTML = `<div class="placeholder">正在查找 ${id}...</div><p>Typhoon ${id}</p>`;
+                        tcResultsEl.appendChild(card);
+                    });
+
+                    await Promise.all(tcIds.map(id => findAndDisplayTyphoonImage(id)));
+                    tcStatusEl.textContent = `图像加载完成。`;
+
+                } catch (error) {
+                    console.error('获取TC数据时出错:', error);
+                    tcStatusEl.textContent = `错误: ${error.message}`;
+                } finally {
+                    fetchTcBtn.disabled = false;
+                }
+            }
+
+            async function findAndDisplayTyphoonImage(id) {
+                const baseUrl = 'https://agora.ex.nii.ac.jp/digital-typhoon/wnp/by-name/';
+                const card = document.getElementById(`tc-card-${id}`);
+                let now = new Date();
+
+                // Search back up to 72 hours
+                for (let i = 0; i < 72; i++) {
+                    const year = now.getUTCFullYear().toString().slice(-2);
+                    const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+                    const day = now.getUTCDate().toString().padStart(2, '0');
+                    const hour = now.getUTCHours().toString().padStart(2, '0');
+                    const dateString = `${year}${month}${day}${hour}`;
+                    
+                    const imageUrl = `${baseUrl}${id}/2/512x512/HMW9${dateString}.${id}.jpg`;
+                    
+                    const found = await checkImage(imageUrl);
+                    if (found) {
+                        card.innerHTML = `<img src="${imageUrl}" alt="Typhoon ${id}"><p>Typhoon ${id}</p>`;
+                        return; // Exit after finding the image
+                    }
+                    
+                    // Decrement by one hour for the next attempt
+                    now.setUTCHours(now.getUTCHours() - 1);
+                }
+                
+                // If no image was found after 72 attempts
+                card.querySelector('.placeholder').textContent = `无法找到 ${id} 的图像`;
+            }
+
+            function checkImage(url) {
+                return new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = () => resolve(true);
+                    img.onerror = () => resolve(false);
+                    img.src = url;
+                });
+            }
+
+            if (fetchTcBtn) {
+                fetchTcBtn.addEventListener('click', fetchTcData);
+            }
+
+
             const themeToggle = document.getElementById('theme-toggle');
             const body = document.body;
             if (themeToggle) {
