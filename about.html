@@ -428,7 +428,7 @@
                 const firstPoints = Array.from(d3.group(data, d => d.sample, d => d.track_id).values(), sampleGroup => Array.from(sampleGroup.values(), trackGroup => trackGroup[0])).flat();
                 const selectedFirst = firstPoints.filter(p => +p.lon >= filters.lonMin && +p.lon <= filters.lonMax && +p.lat >= filters.latMin && +p.lat <= filters.latMax && +p.lead_time_hours >= filters.leadTimeMin && +p.lead_time_hours <= filters.leadTimeMax);
                 const selectedPairs = new Set(selectedFirst.map(p => `${p.sample}|${p.track_id}`));
-                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${p.track_id}`));
+                const filteredData = data.filter(d => selectedPairs.has(`${d.sample}|${d.track_id}`));
                 return d3.group(filteredData, d => d.sample, d => d.track_id);
             }
             function calculateStats(tracks) {
@@ -514,6 +514,9 @@
                 const progressContainer = document.getElementById('model-progress-container');
                 const progressBar = document.getElementById('model-progress-bar');
                 const modelUrl = './epoch15.onnx';
+                let modelBuffer;
+
+                if (session) return; // Don't reload if already loaded
 
                 if (runBtn) runBtn.disabled = true;
                 resultsEl.textContent = '准备加载模型...';
@@ -527,43 +530,58 @@
                     const response = await fetch(modelUrl);
                     if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
                     
-                    const modelBuffer = await response.arrayBuffer();
+                    modelBuffer = await response.arrayBuffer();
                     progressBar.style.width = '100%';
                     resultsEl.textContent = '模型下载完毕。正在初始化推理会话...';
+                } catch (error) {
+                    console.error("下载 ONNX 模型时发生错误:", error);
+                    resultsEl.textContent = `模型文件下载失败: ${error.message}`;
+                    if (runBtn) runBtn.textContent = '加载失败';
+                    progressContainer.style.display = 'none';
+                    return;
+                }
 
-                    // Step 2: Attempt to create the inference session.
-                    // The library tries providers in order: WebGL first, then WASM as a fallback.
-                    console.log("正在尝试使用 'webgl' 和 'wasm' 后端创建 ONNX 会话...");
+                // Step 2: Attempt to create the inference session, trying WebGL first.
+                try {
+                    console.log("正在尝试使用 'webgl' 后端创建 ONNX 会话...");
                     resultsEl.textContent = "正在初始化 WebGL 后端...";
-
                     session = await ort.InferenceSession.create(modelBuffer, { 
-                        executionProviders: ['webgl', 'wasm'],
+                        executionProviders: ['webgl'],
                         graphOptimizationLevel: 'all' 
                     });
-
-                    // Check which backend was actually chosen by the library
-                    const backend = session.handler.backend;
-                    console.log(`ONNX 会话创建成功，使用的后端: ${backend}`);
-                    resultsEl.textContent = `模型加载成功！(后端: ${backend})。请上传图片。`;
-
-                    if (runBtn) {
-                        runBtn.disabled = false;
-                        runBtn.textContent = '开始分析';
-                    }
-
-                } catch (error) {
-                    // This block will catch any error during fetch or session creation.
-                    console.error("加载或初始化 ONNX 模型时发生严重错误:", error);
-                    resultsEl.textContent = `模型加载失败。请打开浏览器开发者控制台 (F12) 查看详细错误信息。错误: ${error.message}`;
-                    if (runBtn) {
-                        runBtn.textContent = '加载失败';
-                    }
-                } finally {
-                    // Hide progress bar after a short delay
-                    setTimeout(() => {
+                } catch (webglError) {
+                    console.warn("WebGL 后端初始化失败:", webglError);
+                    resultsEl.textContent = 'WebGL 加载失败，正在尝试使用 WASM 作为备用方案...';
+                    
+                    // Step 3: If WebGL fails, fall back to WASM
+                    try {
+                        console.log("正在尝试使用 'wasm' 后端作为备用方案...");
+                        // Use slice() as the buffer might be detached after a failed creation attempt
+                        session = await ort.InferenceSession.create(modelBuffer.slice(0), {
+                             executionProviders: ['wasm'],
+                             graphOptimizationLevel: 'all'
+                        });
+                    } catch (wasmError) {
+                        console.error("备用方案 WASM 后端也初始化失败:", wasmError);
+                        resultsEl.textContent = `模型加载失败：所有可用后端 (WebGL, WASM) 均初始化失败。请检查浏览器控制台获取详细信息。`;
+                        if (runBtn) runBtn.textContent = '加载失败';
                         progressContainer.style.display = 'none';
-                    }, 1500);
+                        return; // Exit if all backends fail
+                    }
                 }
+
+                // Step 4: Confirm success and update UI
+                const backend = session.backend;
+                console.log(`ONNX 会话创建成功，使用的后端: ${backend}`);
+                resultsEl.textContent = `模型加载成功！(后端: ${backend})。请上传图片。`;
+
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = '开始分析';
+                }
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 1500);
             }
 
             const enmToolObserver = new MutationObserver((mutationsList, observer) => {
