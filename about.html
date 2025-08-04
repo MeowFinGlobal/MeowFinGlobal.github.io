@@ -802,14 +802,16 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(htmlText, 'text/html');
                     
-                    const headers = doc.querySelectorAll('th.IMGTABTH');
+                    const links = doc.querySelectorAll('td.ATTR a');
                     const tcIds = [];
-                    const idRegex = /T\s+(\d+)/;
+                    const idRegex = /(\d+)\s\(WNP\)/;
 
-                    headers.forEach(th => {
-                        const match = th.textContent.match(idRegex);
+                    links.forEach(link => {
+                        const match = link.textContent.match(idRegex);
                         if (match && match[1]) {
-                            tcIds.push(match[1]);
+                            if (!tcIds.includes(match[1])) {
+                                tcIds.push(match[1]);
+                            }
                         }
                     });
 
