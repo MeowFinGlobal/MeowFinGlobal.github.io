@@ -769,7 +769,7 @@
                     });
 
                     if (tcIds.length === 0) {
-                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。';
+                        tcStatusEl.textContent = '当前没有发现活跃的热带气旋。${e.message}';
                         fetchTcBtn.disabled = false;
                         return;
                     }
