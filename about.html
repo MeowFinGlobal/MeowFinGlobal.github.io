@@ -887,7 +887,7 @@
                     const imageUrl = `${baseUrl}${id}/2/512x512/HMW9${dateString}.${id}.jpg`;
                     const proxyImageUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
                     
-                    const { found, img } = await checkImage(proxyImageUrl);
+                    const { found, img } = await checkImage(imageUrl);
                     if (found) {
                         const timestamp = `${yearFull}-${month}-${day} ${hour}:00 UTC`;
                         card.innerHTML = `<img src="${img.src}" alt="Typhoon ${id}"><p>Typhoon ${id}</p><p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">${timestamp}</p><p id="analysis-status-${id}" style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-color); min-height: 40px;">正在准备ENM模型...</p>`;
