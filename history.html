@@ -287,7 +287,7 @@
                 const { name, cycloneName, track } = cyclone;
                 if (!track || track.length === 0) return;
 
-                const width = container.clientWidth;
+                const width = container.clientWidth + 10;
                 const height = container.clientHeight || width * (2 / 3);
                 
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
