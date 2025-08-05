@@ -266,7 +266,7 @@
 
             let worldMapData = null;
             // Pre-fetch world map data on page load
-            fetch("https://unpkg.com/world-atlas@2/countries-110m.json")
+            fetch("https://unpkg.com/world-atlas@2/countries-50m.json")
                 .then(res => res.json())
                 .then(data => worldMapData = data)
                 .catch(err => console.error("无法加载地图数据:", err));
