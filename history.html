@@ -396,8 +396,8 @@
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
-                const expandedBounds = expandBounds(track.map(p => [p.lon, p.lat]), 1.05);  // 放大 1.4 倍视野
-                const projection = d3.geoMercator().fitSize([width, height], expandedBounds);
+                const expandedBounds = expandBounds(track.map(p => [p.lon, p.lat]), 1.0);  // 放大 1.4 倍视野
+                const projection = d3.geoMercator().fitSize([width, height], paddedBoundsGeoJSON);
                 const pathGenerator = d3.geoPath().projection(projection);
 
                 svg.append("path").attr("d", pathGenerator({type: "Sphere"})).attr("fill", "var(--map-ocean-color)");
