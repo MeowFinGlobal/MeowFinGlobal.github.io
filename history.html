@@ -266,7 +266,7 @@
 
             let worldMapData = null;
             // Pre-fetch world map data on page load
-            fetch("https://unpkg.com/world-atlas@2/countries-50m.json")
+            fetch("https://unpkg.com/world-atlas@2/countries-110m.json")
                 .then(res => res.json())
                 .then(data => worldMapData = data)
                 .catch(err => console.error("无法加载地图数据:", err));
@@ -368,24 +368,7 @@
                 });
                 return { name, cycloneName, data: cleanedLines.join('\n'), track: trackPoints };
             }
-            function expandBounds(coordinates, scale = 1.2) {
-                const lons = coordinates.map(d => d[0]);
-                const lats = coordinates.map(d => d[1]);
-                const lonCenter = (d3.min(lons) + d3.max(lons)) / 2;
-                const latCenter = (d3.min(lats) + d3.max(lats)) / 2;
-                const lonRange = (d3.max(lons) - d3.min(lons)) * scale / 2;
-                const latRange = (d3.max(lats) - d3.min(lats)) * scale / 2;
-                return {
-                    type: "Polygon",
-                    coordinates: [[
-                        [lonCenter - lonRange, latCenter - latRange],
-                        [lonCenter + lonRange, latCenter - latRange],
-                        [lonCenter + lonRange, latCenter + latRange],
-                        [lonCenter - lonRange, latCenter + latRange],
-                        [lonCenter - lonRange, latCenter - latRange]
-                    ]]
-                };
-            }
+
             function drawCycloneMap(container, world, cyclone) {
                 const { name, cycloneName, track } = cyclone;
                 if (!track || track.length === 0) return;
@@ -396,7 +379,6 @@
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
-                const expandedBounds = expandBounds(track.map(p => [p.lon, p.lat]), 1.0);  // 放大 1.4 倍视野
                 const projection = d3.geoMercator().fitSize([width, height], paddedBoundsGeoJSON);
                 const pathGenerator = d3.geoPath().projection(projection);
 
