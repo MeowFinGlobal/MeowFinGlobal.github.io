@@ -310,7 +310,7 @@
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
-                const expandedBounds = expandBounds(track.map(p => [p.lon, p.lat]), 1.2);  // 放大 1.4 倍视野
+                const expandedBounds = expandBounds(track.map(p => [p.lon, p.lat]), 1.0);  // 放大 1.4 倍视野
                 const projection = d3.geoMercator().fitSize([width, height], expandedBounds);
                 const pathGenerator = d3.geoPath().projection(projection);
 
