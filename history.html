@@ -190,7 +190,7 @@
 
             let worldMapData = null;
             // Use a more detailed map for better visuals
-            fetch("https://unpkg.com/world-atlas@2/countries-110m.json")
+            fetch("https://unpkg.com/world-atlas@2/countries-50m.json")
                 .then(res => res.json())
                 .then(data => worldMapData = data)
                 .catch(err => console.error("无法加载地图数据:", err));
@@ -212,7 +212,7 @@
                 }
 
                 const url = `https://www.emc.ncep.noaa.gov/gc_wmb/vxt/DECKS/b${cycloneId}${year}.dat`;
-                const proxyUrl = 'https://api.allorigins.win/raw?url='; // Using a different proxy
+                const proxyUrl = 'https://api.allorigins.win/raw?url=';
 
                 dataContainer.innerHTML = ''; // Clear previous results
                 const status = document.createElement('p');
@@ -302,35 +302,29 @@
                 
                 const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
 
+                // --- MAP ZOOM CORRECTION START ---
+                // 1. Create a GeoJSON object for the track path.
                 const trackLineString = { type: "LineString", coordinates: track.map(p => [p.lon, p.lat]) };
                 
-                // --- MODIFICATION START ---
-                // 1. Calculate the bounding box of the track
+                // 2. Calculate the bounding box of the track.
                 const bounds = d3.geoBounds(trackLineString);
                 
-                // 2. Add padding around the bounds. You can adjust this value.
-                // A larger number means more "zoomed out".
+                // 3. Add padding. A larger number means more "zoomed out".
                 const padding = 8; 
 
-                // 3. Calculate new padded coordinates, ensuring they are valid.
-                const lon0 = Math.max(-180, bounds[0][0] - padding);
-                const lat0 = Math.max(-90,  bounds[0][1] - padding);
-                const lon1 = Math.min(180,  bounds[1][0] + padding);
-                const lat1 = Math.min(90,   bounds[1][1] + padding);
-
-                // Create a GeoJSON object for the new padded bounds.
-                const paddedBoundsGeoJSON = {
-                    type: "Polygon",
-                    coordinates: [[
-                        [lon0, lat0], [lon1, lat0],
-                        [lon1, lat1], [lon0, lat1],
-                        [lon0, lat0]
-                    ]]
+                // 4. Create a simple GeoJSON object representing the padded area.
+                // A MultiPoint object with the two padded corners is effective and robust.
+                const paddedBounds = {
+                    type: "MultiPoint",
+                    coordinates: [
+                        [bounds[0][0] - padding, bounds[0][1] - padding],
+                        [bounds[1][0] + padding, bounds[1][1] + padding]
+                    ]
                 };
 
-                // 4. Use the padded bounds to set the projection
-                const projection = d3.geoMercator().fitSize([width, height], paddedBoundsGeoJSON);
-                // --- MODIFICATION END ---
+                // 5. Create and configure the projection to fit the padded area.
+                const projection = d3.geoMercator().fitSize([width, height], paddedBounds);
+                // --- MAP ZOOM CORRECTION END ---
                 
                 const pathGenerator = d3.geoPath().projection(projection);
 
