@@ -395,7 +395,7 @@
                 mapContainer.style.display = 'none'; mapContainer.innerHTML = ''; statsEl.innerHTML = ''; statusEl.textContent = '正在寻找最新的数据文件...';
                 const filters = { lonMin: parseFloat(document.getElementById('lon-min').value), lonMax: parseFloat(document.getElementById('lon-max').value), latMin: parseFloat(document.getElementById('lat-min').value), latMax: parseFloat(document.getElementById('lat-max').value), leadTimeMin: parseFloat(document.getElementById('lead-time-min').value), leadTimeMax: parseFloat(document.getElementById('lead-time-max').value) };
                 try {
-                    const world = await fetch("https://unpkg.com/world-atlas@2/countries-110m.json").then(res => res.json());
+                    const world = await fetch("https://unpkg.com/world-atlas@2/countries-50m.json").then(res => res.json());
                     const { fileUrl, fileName } = await findLatestFnv3File(statusEl);
                     statusEl.textContent = `已找到最新文件: ${fileName}，正在抓取和处理...`;
                     const proxyUrl = 'https://api.allorigins.win/raw?url=';
