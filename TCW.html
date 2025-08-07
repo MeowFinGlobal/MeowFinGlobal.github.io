@@ -44,6 +44,26 @@
             border-color: #4a90e2;
             box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5);
         }
+        /* Style for color inputs */
+        input[type="color"] {
+            padding: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: transparent;
+            border: 1px solid #444;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 0.375rem;
+        }
         button {
             cursor: pointer;
             background-color: #3a3a3a;
@@ -113,13 +133,14 @@
                 </div>
                  <div>
                     <label for="intensity" class="block text-sm">Intensity (kt)</label>
-                    <input type="number" id="intensity" value="40" class="w-full">
+                    <input type="number" id="intensity" value="25" class="w-full">
                 </div>
                 <div>
                     <label for="systemType" class="block text-sm">System Type</label>
                     <select id="systemType" class="w-full">
-                        <option value="TD">Tropical Depression (TD)</option>
-                        <option value="SS" selected>Tropical Storm (SS)</option>
+                        <option value="TD" selected>Tropical Depression (TD)</option>
+                        <option value="SS">Subtropical Storm (SS)</option>
+                        <option value="TS">Tropical Storm (TS)</option>
                         <option value="TY">Typhoon (TY)</option>
                         <option value="ST">Super Typhoon (ST)</option>
                         <option value="EX">Extratropical (EX)</option>
@@ -131,7 +152,7 @@
             <!-- Color Rules -->
             <div class="space-y-2 p-3 bg-gray-800 rounded-lg">
                 <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">Intensity Color Rules (Min KT)</h2>
-                <div id="colorRules" class="grid grid-cols-2 gap-2 text-sm">
+                <div id="colorRules" class="grid grid-cols-2 gap-4 text-sm">
                     <!-- Color rules will be dynamically generated here -->
                 </div>
             </div>
@@ -209,16 +230,40 @@
                     const div = document.createElement('div');
                     div.className = 'flex items-center space-x-2';
                     
-                    const colorSwatch = document.createElement('div');
-                    colorSwatch.style.backgroundColor = rule.color;
-                    colorSwatch.className = 'w-4 h-4 rounded-full border border-gray-500';
+                    const colorInput = document.createElement('input');
+                    colorInput.type = 'color';
+                    colorInput.value = rule.color;
+                    colorInput.className = 'p-1 h-10 w-10';
+                    colorInput.dataset.oldColor = rule.color; // Store original color to find it later
 
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.value = rule.threshold;
-                    input.className = 'w-full text-sm p-1';
-                    input.dataset.color = rule.color; // Use color as a stable identifier
-                    input.addEventListener('change', (e) => {
+                    colorInput.addEventListener('input', (e) => {
+                        const newColor = e.target.value;
+                        const oldColor = e.target.dataset.oldColor;
+
+                        const ruleToUpdate = colorRules.find(r => r.color === oldColor);
+                        if (ruleToUpdate) {
+                            ruleToUpdate.color = newColor;
+                        }
+                        
+                        // Update the dataset for the next change
+                        e.target.dataset.oldColor = newColor;
+
+                        // Also update the dataset on the threshold input
+                        const thresholdInput = e.target.nextElementSibling;
+                        if (thresholdInput) {
+                            thresholdInput.dataset.color = newColor;
+                        }
+
+                        drawTrack();
+                    });
+
+                    const thresholdInput = document.createElement('input');
+                    thresholdInput.type = 'number';
+                    thresholdInput.value = rule.threshold;
+                    thresholdInput.className = 'w-full text-sm p-1';
+                    thresholdInput.dataset.color = rule.color; // Use color as a stable identifier
+                    
+                    thresholdInput.addEventListener('change', (e) => {
                         const newThreshold = parseInt(e.target.value, 10);
                         const ruleColor = e.target.dataset.color;
                         if (!isNaN(newThreshold)) {
@@ -232,8 +277,8 @@
                         }
                     });
                     
-                    div.appendChild(colorSwatch);
-                    div.appendChild(input);
+                    div.appendChild(colorInput);
+                    div.appendChild(thresholdInput);
                     colorRulesContainer.appendChild(div);
                 });
             }
@@ -251,9 +296,7 @@
             }
             
             function handleMapClick(e) {
-                // Using offsetX and offsetY is simpler and more direct when the event
-                // listener is on the image element itself. It gives the coordinates
-                // relative to the target element's padding edge.
+                // Using offsetX and offsetY is simpler and more direct
                 const x = e.offsetX;
                 const y = e.offsetY;
 
