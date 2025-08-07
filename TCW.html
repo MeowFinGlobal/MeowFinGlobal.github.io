@@ -388,7 +388,7 @@
                 const outputLines = trackPoints.map(p => {
                     const latStr = `${Math.abs(p.lat)}${p.lat >= 0 ? 'N' : 'S'}`;
                     const lonStr = `${Math.abs(p.lon)}${p.lon >= 0 ? 'E' : 'W'}`;
-                    return `${p.basin}, ${p.systemId}, ${p.timestamp}, BEST, ${latStr}, ${lonStr}, ${p.intensity}, ${p.systemType}`;
+                    return `${p.basin}, ${p.systemId}, ${p.timestamp},   , BEST,   0,  ${latStr}, ${lonStr}, ${p.intensity}, 0, ${p.systemType}`;
                 });
                 outputTextarea.value = outputLines.join('\n');
                 // Scroll to bottom
