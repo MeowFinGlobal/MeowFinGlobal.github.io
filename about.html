@@ -425,6 +425,7 @@
                     now.setUTCHours(now.getUTCHours() - 6);
                 }
                 throw new Error("在过去5天内未找到可用的FNV3数据文件。");
+            }
             function processFnv3Csv(csvText, filters) {
                 const lines = csvText.split('\n'); let dataStartIndex = -1;
                 for (let i = 0; i < lines.length; i++) { if (lines[i].includes('BEGIN DATA')) { dataStartIndex = i + 1; break; } }
