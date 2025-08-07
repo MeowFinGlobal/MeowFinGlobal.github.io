@@ -29,6 +29,7 @@
         }
         #mapImage {
             display: block;
+            max-width: none; /* Prevents the browser from scaling down the large map image */
         }
         input, select, textarea, button {
             background-color: #2a2a2a;
@@ -219,7 +220,10 @@
                     input.addEventListener('change', (e) => {
                         const newThreshold = parseInt(e.target.value, 10);
                         if (!isNaN(newThreshold)) {
-                            colorRules[index].threshold = newThreshold;
+                            // Find the correct rule to update, as the index from the event might be stale after sorting
+                            const ruleToUpdate = colorRules.find(r => r.color === rule.color);
+                            if(ruleToUpdate) ruleToUpdate.threshold = newThreshold;
+                            
                             // Re-sort rules to maintain descending order
                             colorRules.sort((a, b) => b.threshold - a.threshold);
                             renderColorRules(); // Re-render to reflect sorted order
