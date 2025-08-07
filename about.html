@@ -410,6 +410,8 @@
                 } catch (error) { console.error('FNV3工具出错:', error); statusEl.textContent = `错误: ${error.message}`; }
             }
             async function findLatestFnv3File(statusEl) {
+                let now = new Date();
+                now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
                 const proxyUrl = 'https://api.allorigins.win/raw?url='; let now = new Date(); now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
                 const baseUrl = 'https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/';
                 for (let i = 0; i < 20; i++) {
