@@ -203,6 +203,7 @@
 
             // --- APPLICATION STATE ---
             let trackPoints = [];
+            let baseTime = null; // To store the timestamp of the first point
             let colorRules = [
                 { threshold: 139, color: '#FF00FF' }, // Magenta
                 { threshold: 114, color: '#FF4500' }, // OrangeRed
@@ -234,26 +235,20 @@
                     colorInput.type = 'color';
                     colorInput.value = rule.color;
                     colorInput.className = 'p-1 h-10 w-10';
-                    colorInput.dataset.oldColor = rule.color; // Store original color to find it later
+                    colorInput.dataset.oldColor = rule.color;
 
                     colorInput.addEventListener('input', (e) => {
                         const newColor = e.target.value;
                         const oldColor = e.target.dataset.oldColor;
-
                         const ruleToUpdate = colorRules.find(r => r.color === oldColor);
                         if (ruleToUpdate) {
                             ruleToUpdate.color = newColor;
                         }
-                        
-                        // Update the dataset for the next change
                         e.target.dataset.oldColor = newColor;
-
-                        // Also update the dataset on the threshold input
                         const thresholdInput = e.target.nextElementSibling;
                         if (thresholdInput) {
                             thresholdInput.dataset.color = newColor;
                         }
-
                         drawTrack();
                     });
 
@@ -261,7 +256,7 @@
                     thresholdInput.type = 'number';
                     thresholdInput.value = rule.threshold;
                     thresholdInput.className = 'w-full text-sm p-1';
-                    thresholdInput.dataset.color = rule.color; // Use color as a stable identifier
+                    thresholdInput.dataset.color = rule.color;
                     
                     thresholdInput.addEventListener('change', (e) => {
                         const newThreshold = parseInt(e.target.value, 10);
@@ -269,10 +264,8 @@
                         if (!isNaN(newThreshold)) {
                             const ruleToUpdate = colorRules.find(r => r.color === ruleColor);
                             if(ruleToUpdate) ruleToUpdate.threshold = newThreshold;
-                            
-                            // Re-sort rules to maintain descending order
                             colorRules.sort((a, b) => b.threshold - a.threshold);
-                            renderColorRules(); // Re-render to reflect sorted order and new values
+                            renderColorRules();
                             drawTrack();
                         }
                     });
@@ -285,20 +278,27 @@
 
             // --- EVENT HANDLING ---
             function attachEventListeners() {
-                // Attach listener directly to the image for more reliable coordinates
                 if (mapImage) {
                     mapImage.addEventListener('click', handleMapClick);
                 }
                 clearLastBtn.addEventListener('click', clearLastPoint);
                 exportBtn.addEventListener('click', exportData);
                 intensityInput.addEventListener('input', drawTrack); 
-                systemTypeInput.addEventListener('input', drawTrack); // Also redraw when system type changes
+                systemTypeInput.addEventListener('change', drawTrack);
             }
             
             function handleMapClick(e) {
-                // Using offsetX and offsetY is simpler and more direct
                 const x = e.offsetX;
                 const y = e.offsetY;
+
+                // If this is the first point, establish the base time
+                if (trackPoints.length === 0) {
+                    baseTime = roundToSynopticTime(new Date());
+                }
+
+                // Calculate the timestamp for the new point
+                const pointTime = new Date(baseTime.getTime());
+                pointTime.setUTCHours(pointTime.getUTCHours() + trackPoints.length * 6);
 
                 const geo = pixelToGeo(x, y);
                 const intensity = parseInt(intensityInput.value, 10) || 0;
@@ -312,7 +312,7 @@
                     systemType: systemTypeInput.value,
                     basin: basinInput.value.toUpperCase(),
                     systemId: systemIdInput.value.padStart(2, '0'),
-                    timestamp: getCurrentUTCTime()
+                    timestamp: formatToUTCString(pointTime)
                 };
 
                 trackPoints.push(point);
@@ -320,7 +320,7 @@
                 updateOutput();
             }
 
-            // --- CORE LOGIC ---
+            // --- CORE LOGIC & HELPERS ---
             function pixelToGeo(x, y) {
                 const lon = (x - PM_X_PX) / PX_PER_DEG;
                 const lat = (EQ_Y_PX - y) / PX_PER_DEG;
@@ -360,7 +360,8 @@
                     ctx.beginPath();
 
                     switch (point.systemType) {
-                        case 'SS':
+                        case 'TS': // Tropical Storm
+                        case 'SS': // Subtropical Storm
                             // Draw a square. Size 12x12, so "radius" is 6.
                             ctx.rect(point.px - 6, point.py - 6, 12, 12);
                             break;
@@ -388,16 +389,20 @@
                 const outputLines = trackPoints.map(p => {
                     const latStr = `${Math.abs(p.lat)}${p.lat >= 0 ? 'N' : 'S'}`;
                     const lonStr = `${Math.abs(p.lon)}${p.lon >= 0 ? 'E' : 'W'}`;
-                    return `${p.basin}, ${p.systemId}, ${p.timestamp},   , BEST,   0,  ${latStr}, ${lonStr}, ${p.intensity}, 0, ${p.systemType}`;
+                    // Updated format as requested
+                    return `${p.basin}, ${p.systemId}, ${p.timestamp},    , BEST,   0, ${latStr}, ${lonStr},  ${p.intensity},    , ${p.systemType}`;
                 });
                 outputTextarea.value = outputLines.join('\n');
-                // Scroll to bottom
                 outputTextarea.scrollTop = outputTextarea.scrollHeight;
             }
 
             function clearLastPoint() {
                 if (trackPoints.length > 0) {
                     trackPoints.pop();
+                    // If all points are cleared, reset the base time
+                    if (trackPoints.length === 0) {
+                        baseTime = null;
+                    }
                     drawTrack();
                     updateOutput();
                 }
@@ -406,7 +411,6 @@
             function exportData() {
                 const data = outputTextarea.value;
                 if (!data) {
-                    // Using a custom modal/alert would be better, but for simplicity:
                     console.warn('No data to export.');
                     return;
                 }
@@ -422,14 +426,29 @@
                 URL.revokeObjectURL(url);
             }
 
-            function getCurrentUTCTime() {
-                const now = new Date();
-                const year = now.getUTCFullYear();
-                const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-                const day = now.getUTCDate().toString().padStart(2, '0');
-                const hours = now.getUTCHours().toString().padStart(2, '0');
-                // For this application, minutes are typically rounded to the nearest 6-hour synoptic time (00, 06, 12, 18)
-                // We will just use the current hour for simplicity.
+            /**
+             * Rounds a Date object down to the nearest 6-hour synoptic time (00, 06, 12, 18).
+             * @param {Date} date The date to round.
+             * @returns {Date} The rounded date object.
+             */
+            function roundToSynopticTime(date) {
+                const roundedDate = new Date(date.getTime());
+                const hours = roundedDate.getUTCHours();
+                const roundedHours = Math.floor(hours / 6) * 6;
+                roundedDate.setUTCHours(roundedHours, 0, 0, 0);
+                return roundedDate;
+            }
+
+            /**
+             * Formats a Date object into a YYYYMMDDHH string.
+             * @param {Date} date The date to format.
+             * @returns {string} The formatted date string.
+             */
+            function formatToUTCString(date) {
+                const year = date.getUTCFullYear();
+                const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+                const day = date.getUTCDate().toString().padStart(2, '0');
+                const hours = date.getUTCHours().toString().padStart(2, '0');
                 return `${year}${month}${day}${hours}`;
             }
 
