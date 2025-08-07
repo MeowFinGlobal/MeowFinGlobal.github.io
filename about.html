@@ -398,7 +398,7 @@
                     const world = await fetch("https://unpkg.com/world-atlas@2/countries-50m.json").then(res => res.json());
                     const { fileUrl, fileName } = await findLatestFnv3File(statusEl);
                     statusEl.textContent = `已找到最新文件: ${fileName}，正在抓取和处理...`;
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const proxyUrl = 'https://corsproxy.io/?'; // CORRECTED PROXY
                     const csvText = await fetch(proxyUrl + encodeURIComponent(fileUrl)).then(res => { if (!res.ok) throw new Error(`无法抓取文件 ${fileName}`); return res.text(); });
                     const tracks = processFnv3Csv(csvText, filters);
                     if (tracks.size === 0) { statusEl.textContent = `在 ${fileName} 中未找到符合筛选条件的气旋路径。`; return; }
@@ -410,9 +410,9 @@
                 } catch (error) { console.error('FNV3工具出错:', error); statusEl.textContent = `错误: ${error.message}`; }
             }
             async function findLatestFnv3File(statusEl) {
+                const proxyUrl = 'https://corsproxy.io/?'; // CORRECTED PROXY
                 let now = new Date();
-                now.setUTCHours(Math.floor((now.getUTCHours()-6) / 6) * 6, 0, 0, 0);
-                const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                now.setUTCHours(Math.floor(now.getUTCHours() / 6) * 6, 0, 0, 0);
                 const baseUrl = 'https://deepmind.google.com/science/weatherlab/download/cyclones/FNV3/ensemble/cyclogenesis/csv/';
                 for (let i = 0; i < 20; i++) {
                     const year = now.getUTCFullYear(), month = (now.getUTCMonth() + 1).toString().padStart(2, '0'), day = now.getUTCDate().toString().padStart(2, '0'), hour = now.getUTCHours().toString().padStart(2, '0');
@@ -528,7 +528,6 @@
                 resultsEl.textContent = '准备加载模型...';
                 
                 try {
-                    // Step 1: Fetch the model data with progress indication
                     resultsEl.textContent = '开始下载模型文件...';
                     progressContainer.style.display = 'block';
                     progressBar.style.width = '0%';
@@ -538,7 +537,6 @@
 
                     const contentLength = response.headers.get('content-length');
                     if (!contentLength || !response.body) {
-                        // Fallback for browsers or servers that don't support streams/content-length
                         console.warn("无法获取内容长度或响应流，进度条将不会实时更新。");
                         modelBuffer = await response.arrayBuffer();
                         progressBar.style.width = '100%';
@@ -559,7 +557,6 @@
                             progressBar.style.width = `${progress.toFixed(2)}%`;
                         }
 
-                        // Combine the chunks into a single Uint8Array
                         const fullBuffer = new Uint8Array(loaded);
                         let offset = 0;
                         for (const chunk of chunks) {
@@ -578,7 +575,6 @@
                     return;
                 }
 
-                // Step 2: Attempt to create the inference session, trying WebGL first.
                 try {
                     console.log("正在尝试使用 'webgl' 后端创建 ONNX 会话...");
                     resultsEl.textContent = "正在初始化 WebGL 后端...";
@@ -590,10 +586,8 @@
                     console.warn("WebGL 后端初始化失败:", webglError);
                     resultsEl.textContent = 'WebGL 加载失败，正在尝试使用 WASM 作为备用方案...';
                     
-                    // Step 3: If WebGL fails, fall back to WASM
                     try {
                         console.log("正在尝试使用 'wasm' 后端作为备用方案...");
-                        // Use slice() as the buffer might be detached after a failed creation attempt
                         session = await ort.InferenceSession.create(modelBuffer.slice(0), {
                              executionProviders: ['wasm'],
                              graphOptimizationLevel: 'all'
@@ -607,7 +601,6 @@
                     }
                 }
 
-                // Step 4: Confirm success and update UI
                 console.log(`ONNX 会话创建成功。`);
                 resultsEl.textContent = `模型加载成功！请上传图片。`;
 
@@ -947,4 +940,4 @@
     </script>
 
 </body>
-</html>
+</ht
