@@ -150,7 +150,7 @@
 
         <!-- Map Area -->
         <main id="mapContainer" class="map-container flex-1">
-            <img id="mapImage" src="./blue_marble.jpg" alt="Global Map" width="15306" height="7653">
+            <img id="mapImage" src="./blue_marble.png" alt="Global Map" width="15306" height="7653" onerror="this.outerHTML='<div style=\'width: 15306px; height: 7653px; background: #333; color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; padding: 2rem; text-align: center;\'>Error: Map image (blue_marble.png) not found.<br>Please ensure the image file is in the same folder as this HTML file.</div>'">
             <canvas id="mapCanvas" width="15306" height="7653"></canvas>
         </main>
 
@@ -242,6 +242,9 @@
             }
             
             function handleMapClick(e) {
+                // Do not process clicks if the target was the error message div
+                if (e.target.id !== 'mapImage') return;
+
                 // Calculate click coordinates relative to the map image
                 const rect = e.target.getBoundingClientRect();
                 const x = e.clientX - rect.left + mapContainer.scrollLeft;
@@ -332,7 +335,8 @@
             function exportData() {
                 const data = outputTextarea.value;
                 if (!data) {
-                    alert('No data to export.');
+                    // Using a custom modal/alert would be better, but for simplicity:
+                    console.warn('No data to export.');
                     return;
                 }
                 const blob = new Blob([data], { type: 'text/plain' });
