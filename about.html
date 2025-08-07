@@ -307,8 +307,10 @@
 
             toolLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
-                    e.preventDefault();
                     const toolId = this.getAttribute('data-tool');
+                    if (!toolId) return; // If it's a normal link, don't prevent default
+
+                    e.preventDefault();
                     const targetTool = document.getElementById(toolId);
 
                     toolLinks.forEach(l => l.classList.remove('active'));
@@ -941,4 +943,4 @@
     </script>
 
 </body>
-</ht
+</html>
