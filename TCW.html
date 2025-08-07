@@ -39,6 +39,9 @@
             padding: 0.5rem 0.75rem;
             transition: all 0.2s ease-in-out;
         }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #4a90e2;
@@ -149,6 +152,19 @@
                 </div>
             </div>
 
+            <!-- General Settings -->
+            <div class="space-y-2 p-3 bg-gray-800 rounded-lg">
+                <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">Settings</h2>
+                <div>
+                    <label for="initialTime" class="block text-sm">Initial Time (UTC)</label>
+                    <input type="datetime-local" id="initialTime" class="w-full">
+                </div>
+                 <div>
+                    <label for="pointSize" class="block text-sm">Point Size</label>
+                    <input type="number" id="pointSize" value="6" min="1" max="20" class="w-full">
+                </div>
+            </div>
+
             <!-- Color Rules -->
             <div class="space-y-2 p-3 bg-gray-800 rounded-lg">
                 <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">Intensity Color Rules (Min KT)</h2>
@@ -196,6 +212,8 @@
             const systemIdInput = document.getElementById('systemId');
             const intensityInput = document.getElementById('intensity');
             const systemTypeInput = document.getElementById('systemType');
+            const initialTimeInput = document.getElementById('initialTime');
+            const pointSizeInput = document.getElementById('pointSize');
             const outputTextarea = document.getElementById('output');
             const clearLastBtn = document.getElementById('clearLastBtn');
             const exportBtn = document.getElementById('exportBtn');
@@ -217,6 +235,8 @@
 
             // --- INITIALIZATION ---
             function initialize() {
+                // Set default initial time to current UTC time
+                initialTimeInput.value = formatToDateTimeLocal(new Date());
                 renderColorRules();
                 attachEventListeners();
                 // Center the map on the Western Pacific Ocean initially
@@ -285,15 +305,17 @@
                 exportBtn.addEventListener('click', exportData);
                 intensityInput.addEventListener('input', drawTrack); 
                 systemTypeInput.addEventListener('change', drawTrack);
+                pointSizeInput.addEventListener('input', drawTrack);
             }
             
             function handleMapClick(e) {
                 const x = e.offsetX;
                 const y = e.offsetY;
 
-                // If this is the first point, establish the base time
+                // If this is the first point, establish the base time from the input
                 if (trackPoints.length === 0) {
-                    baseTime = roundToSynopticTime(new Date());
+                    const initialDate = initialTimeInput.value ? new Date(initialTimeInput.value) : new Date();
+                    baseTime = roundToSynopticTime(initialDate);
                 }
 
                 // Calculate the timestamp for the new point
@@ -324,6 +346,7 @@
             function pixelToGeo(x, y) {
                 const lon = (x - PM_X_PX) / PX_PER_DEG;
                 const lat = (EQ_Y_PX - y) / PX_PER_DEG;
+                // Ensure output always has one decimal place
                 return { lat: lat.toFixed(1), lon: lon.toFixed(1) };
             }
 
@@ -337,6 +360,7 @@
             }
 
             function drawTrack() {
+                const pointRadius = parseInt(pointSizeInput.value, 10) || 6;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (trackPoints.length === 0) return;
@@ -362,21 +386,18 @@
                     switch (point.systemType) {
                         case 'TS': // Tropical Storm
                         case 'SS': // Subtropical Storm
-                            // Draw a square. Size 12x12, so "radius" is 6.
-                            ctx.rect(point.px - 6, point.py - 6, 12, 12);
+                            ctx.rect(point.px - pointRadius, point.py - pointRadius, pointRadius * 2, pointRadius * 2);
                             break;
                         case 'DB':
                         case 'EX':
-                            // Draw a triangle. "Radius" is 8.
-                            const r = 8;
+                            const r = pointRadius + 2; // Keep triangles slightly larger
                             ctx.moveTo(point.px, point.py - r); // Top vertex
                             ctx.lineTo(point.px - r * Math.sqrt(3) / 2, point.py + r / 2); // Bottom left
                             ctx.lineTo(point.px + r * Math.sqrt(3) / 2, point.py + r / 2); // Bottom right
                             ctx.closePath();
                             break;
                         default:
-                            // Draw a circle (default). Radius is 6.
-                            ctx.arc(point.px, point.py, 6, 0, 2 * Math.PI);
+                            ctx.arc(point.px, point.py, pointRadius, 0, 2 * Math.PI);
                             break;
                     }
 
@@ -389,7 +410,6 @@
                 const outputLines = trackPoints.map(p => {
                     const latStr = `${Math.abs(p.lat)}${p.lat >= 0 ? 'N' : 'S'}`;
                     const lonStr = `${Math.abs(p.lon)}${p.lon >= 0 ? 'E' : 'W'}`;
-                    // Updated format as requested
                     return `${p.basin}, ${p.systemId}, ${p.timestamp},    , BEST,   0, ${latStr}, ${lonStr},  ${p.intensity},    , ${p.systemType}`;
                 });
                 outputTextarea.value = outputLines.join('\n');
@@ -399,7 +419,6 @@
             function clearLastPoint() {
                 if (trackPoints.length > 0) {
                     trackPoints.pop();
-                    // If all points are cleared, reset the base time
                     if (trackPoints.length === 0) {
                         baseTime = null;
                     }
@@ -425,12 +444,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
-
-            /**
-             * Rounds a Date object down to the nearest 6-hour synoptic time (00, 06, 12, 18).
-             * @param {Date} date The date to round.
-             * @returns {Date} The rounded date object.
-             */
+            
             function roundToSynopticTime(date) {
                 const roundedDate = new Date(date.getTime());
                 const hours = roundedDate.getUTCHours();
@@ -439,17 +453,26 @@
                 return roundedDate;
             }
 
-            /**
-             * Formats a Date object into a YYYYMMDDHH string.
-             * @param {Date} date The date to format.
-             * @returns {string} The formatted date string.
-             */
             function formatToUTCString(date) {
                 const year = date.getUTCFullYear();
                 const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
                 const day = date.getUTCDate().toString().padStart(2, '0');
                 const hours = date.getUTCHours().toString().padStart(2, '0');
                 return `${year}${month}${day}${hours}`;
+            }
+            
+            /**
+             * Formats a Date object into a string suitable for datetime-local input.
+             * @param {Date} date The date to format.
+             * @returns {string} The formatted date string (YYYY-MM-DDTHH:mm).
+             */
+            function formatToDateTimeLocal(date) {
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                return `${year}-${month}-${day}T${hours}:${minutes}`;
             }
 
             // --- START THE APP ---
