@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TC Track Auto Writer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a clean, high-contrast UI */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #e0e0e0;
+            background-color: #121212;
+        }
+        .control-panel {
+            background-color: #1e1e1e;
+        }
+        .map-container {
+            position: relative;
+            overflow: auto;
+            cursor: crosshair;
+            border-left: 2px solid #333;
+        }
+        #mapCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Allows clicks to pass through to the map image */
+        }
+        #mapImage {
+            display: block;
+        }
+        input, select, textarea, button {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            transition: all 0.2s ease-in-out;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5);
+        }
+        button {
+            cursor: pointer;
+            background-color: #3a3a3a;
+        }
+        button:hover {
+            background-color: #4a4a4a;
+        }
+        .btn-primary {
+            background-color: #4a90e2;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background-color: #357abd;
+        }
+        .btn-danger {
+            background-color: #e24a4a;
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background-color: #bd3535;
+        }
+        label {
+            font-weight: 500;
+        }
+        /* Scrollbar styling for a better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gray-900 text-white p-3 shadow-md z-10">
+        <h1 class="text-xl font-bold">TC Track Auto Writer</h1>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- Control Panel -->
+        <aside class="control-panel w-full md:w-96 p-4 overflow-y-auto flex flex-col space-y-4">
+            <!-- System Identification -->
+            <div class="space-y-2 p-3 bg-gray-800 rounded-lg">
+                <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">System ID & Type</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label for="basin" class="block text-sm">Basin</label>
+                        <input type="text" id="basin" value="WP" class="w-full">
+                    </div>
+                    <div>
+                        <label for="systemId" class="block text-sm">Number</label>
+                        <input type="text" id="systemId" value="01" class="w-full">
+                    </div>
+                </div>
+                 <div>
+                    <label for="intensity" class="block text-sm">Intensity (kt)</label>
+                    <input type="number" id="intensity" value="40" class="w-full">
+                </div>
+                <div>
+                    <label for="systemType" class="block text-sm">System Type</label>
+                    <select id="systemType" class="w-full">
+                        <option value="TD">Tropical Depression (TD)</option>
+                        <option value="SS" selected>Tropical Storm (SS)</option>
+                        <option value="TY">Typhoon (TY)</option>
+                        <option value="ST">Super Typhoon (ST)</option>
+                        <option value="EX">Extratropical (EX)</option>
+                        <option value="DB">Disturbance (DB)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Color Rules -->
+            <div class="space-y-2 p-3 bg-gray-800 rounded-lg">
+                <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">Intensity Color Rules (Min KT)</h2>
+                <div id="colorRules" class="grid grid-cols-2 gap-2 text-sm">
+                    <!-- Color rules will be dynamically generated here -->
+                </div>
+            </div>
+
+            <!-- Output -->
+            <div class="flex-grow flex flex-col p-3 bg-gray-800 rounded-lg">
+                 <h2 class="text-lg font-semibold border-b border-gray-600 pb-1 mb-2">Formatted Output</h2>
+                <textarea id="output" readonly class="w-full flex-grow text-xs font-mono resize-none"></textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button id="clearLastBtn" class="btn-danger w-full">Clear Last Point</button>
+                <button id="exportBtn" class="btn-primary w-full">Export Data</button>
+            </div>
+        </aside>
+
+        <!-- Map Area -->
+        <main id="mapContainer" class="map-container flex-1">
+            <img id="mapImage" src="./blue_marble.png" alt="Global Map" width="15306" height="7653">
+            <canvas id="mapCanvas" width="15306" height="7653"></canvas>
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION CONSTANTS ---
+            const MAP_WIDTH = 15306;
+            const MAP_HEIGHT = 7653;
+            const EQ_Y_PX = 3826.5; // Y-coordinate of the Equator
+            const PM_X_PX = 7653;   // X-coordinate of the Prime Meridian (0E/0W)
+            const PX_PER_DEG = 42.5; // 4.25px per 0.1 degree
+
+            // --- DOM ELEMENT REFERENCES ---
+            const mapContainer = document.getElementById('mapContainer');
+            const canvas = document.getElementById('mapCanvas');
+            const ctx = canvas.getContext('2d');
+            const basinInput = document.getElementById('basin');
+            const systemIdInput = document.getElementById('systemId');
+            const intensityInput = document.getElementById('intensity');
+            const systemTypeInput = document.getElementById('systemType');
+            const outputTextarea = document.getElementById('output');
+            const clearLastBtn = document.getElementById('clearLastBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const colorRulesContainer = document.getElementById('colorRules');
+
+            // --- APPLICATION STATE ---
+            let trackPoints = [];
+            let colorRules = [
+                { threshold: 139, color: '#FF00FF' }, // Magenta
+                { threshold: 114, color: '#FF4500' }, // OrangeRed
+                { threshold: 99,  color: '#FF8C00' }, // DarkOrange
+                { threshold: 84,  color: '#FFD700' }, // Gold
+                { threshold: 64,  color: '#FF0000' }, // Red
+                { threshold: 34,  color: '#00FF00' }, // Lime
+                { threshold: 24,  color: '#00BFFF' }, // DeepSkyBlue
+                { threshold: 0,   color: '#FFFFFF' }  // White
+            ];
+
+            // --- INITIALIZATION ---
+            function initialize() {
+                renderColorRules();
+                attachEventListeners();
+                // Center the map on the Western Pacific Ocean initially
+                mapContainer.scrollTop = 2000;
+                mapContainer.scrollLeft = 10000;
+            }
+
+            // --- DYNAMIC UI RENDERING ---
+            function renderColorRules() {
+                colorRulesContainer.innerHTML = '';
+                colorRules.slice(0, -1).forEach((rule, index) => { // Exclude the base '0' rule
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center space-x-2';
+                    
+                    const colorSwatch = document.createElement('div');
+                    colorSwatch.style.backgroundColor = rule.color;
+                    colorSwatch.className = 'w-4 h-4 rounded-full border border-gray-500';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.value = rule.threshold;
+                    input.className = 'w-full text-sm p-1';
+                    input.dataset.index = index;
+                    input.addEventListener('change', (e) => {
+                        const newThreshold = parseInt(e.target.value, 10);
+                        if (!isNaN(newThreshold)) {
+                            colorRules[index].threshold = newThreshold;
+                            // Re-sort rules to maintain descending order
+                            colorRules.sort((a, b) => b.threshold - a.threshold);
+                            renderColorRules(); // Re-render to reflect sorted order
+                            drawTrack();
+                        }
+                    });
+                    
+                    div.appendChild(colorSwatch);
+                    div.appendChild(input);
+                    colorRulesContainer.appendChild(div);
+                });
+            }
+
+            // --- EVENT HANDLING ---
+            function attachEventListeners() {
+                mapContainer.addEventListener('click', handleMapClick);
+                clearLastBtn.addEventListener('click', clearLastPoint);
+                exportBtn.addEventListener('click', exportData);
+                intensityInput.addEventListener('input', drawTrack); // Redraw on intensity change for live preview
+            }
+            
+            function handleMapClick(e) {
+                // Calculate click coordinates relative to the map image
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left + mapContainer.scrollLeft;
+                const y = e.clientY - rect.top + mapContainer.scrollTop;
+
+                const geo = pixelToGeo(x, y);
+                const intensity = parseInt(intensityInput.value, 10) || 0;
+                
+                const point = {
+                    px: x,
+                    py: y,
+                    lat: geo.lat,
+                    lon: geo.lon,
+                    intensity: intensity,
+                    systemType: systemTypeInput.value,
+                    basin: basinInput.value.toUpperCase(),
+                    systemId: systemIdInput.value.padStart(2, '0'),
+                    timestamp: getCurrentUTCTime()
+                };
+
+                trackPoints.push(point);
+                drawTrack();
+                updateOutput();
+            }
+
+            // --- CORE LOGIC ---
+            function pixelToGeo(x, y) {
+                const lon = (x - PM_X_PX) / PX_PER_DEG;
+                const lat = (EQ_Y_PX - y) / PX_PER_DEG;
+                return { lat: lat.toFixed(1), lon: lon.toFixed(1) };
+            }
+
+            function getColorForIntensity(intensity) {
+                for (const rule of colorRules) {
+                    if (intensity >= rule.threshold) {
+                        return rule.color;
+                    }
+                }
+                return colorRules[colorRules.length - 1].color; // Default color
+            }
+
+            function drawTrack() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (trackPoints.length === 0) return;
+
+                // Draw lines connecting points
+                ctx.beginPath();
+                ctx.moveTo(trackPoints[0].px, trackPoints[0].py);
+                for (let i = 1; i < trackPoints.length; i++) {
+                    ctx.lineTo(trackPoints[i].px, trackPoints[i].py);
+                }
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw points
+                trackPoints.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point.px, point.py, 6, 0, 2 * Math.PI);
+                    ctx.fillStyle = getColorForIntensity(point.intensity);
+                    ctx.fill();
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                });
+            }
+
+            function updateOutput() {
+                const outputLines = trackPoints.map(p => {
+                    const latStr = `${Math.abs(p.lat)}${p.lat >= 0 ? 'N' : 'S'}`;
+                    const lonStr = `${Math.abs(p.lon)}${p.lon >= 0 ? 'E' : 'W'}`;
+                    return `${p.basin}, ${p.systemId}, ${p.timestamp}, BEST, ${latStr}, ${lonStr}, ${p.intensity}, ${p.systemType}`;
+                });
+                outputTextarea.value = outputLines.join('\n');
+                // Scroll to bottom
+                outputTextarea.scrollTop = outputTextarea.scrollHeight;
+            }
+
+            function clearLastPoint() {
+                if (trackPoints.length > 0) {
+                    trackPoints.pop();
+                    drawTrack();
+                    updateOutput();
+                }
+            }
+
+            function exportData() {
+                const data = outputTextarea.value;
+                if (!data) {
+                    alert('No data to export.');
+                    return;
+                }
+                const blob = new Blob([data], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const filename = `${basinInput.value}${systemIdInput.value}_track.txt`;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function getCurrentUTCTime() {
+                const now = new Date();
+                const year = now.getUTCFullYear();
+                const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+                const day = now.getUTCDate().toString().padStart(2, '0');
+                const hours = now.getUTCHours().toString().padStart(2, '0');
+                // For this application, minutes are typically rounded to the nearest 6-hour synoptic time (00, 06, 12, 18)
+                // We will just use the current hour for simplicity.
+                return `${year}${month}${day}${hours}`;
+            }
+
+            // --- START THE APP ---
+            initialize();
+        });
+    </script>
+
+</body>
+</html>
