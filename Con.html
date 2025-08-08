@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Track File Converter</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#0f1724; --accent:#00d1ff; --muted:#9aa7bf; --neon:#7cffb2;
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071026 0%, #07121a 60%);color:var(--muted)}
+    .wrap{max-width:1100px;margin:28px auto;padding:26px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);box-shadow:0 10px 30px rgba(2,6,23,0.6);}
+    header{display:flex;gap:16px;align-items:center}
+    .logo{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--neon));color:#021018;font-weight:800;font-size:20px}
+    h1{margin:0;font-size:20px;color:#e6f7ff}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+    .panel{background:var(--card);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}
+    textarea{width:100%;min-height:360px;background:var(--glass);border:2px dashed rgba(255,255,255,0.03);padding:12px;border-radius:8px;color:#e8fbff;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;font-size:13px;resize:vertical}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:10px}
+    button{background:linear-gradient(90deg,var(--accent),var(--neon));border:none;color:#021018;padding:10px 14px;border-radius:9px;font-weight:700;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+    .small{padding:8px 10px;border-radius:8px;font-size:13px}
+    .meta{font-size:13px;color:var(--muted);margin-top:8px}
+    .out{background:#021018;border:1px solid rgba(0,209,255,0.08);padding:12px;border-radius:8px;color:var(--neon);font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;font-size:13px;min-height:360px;overflow:auto}
+    footer{margin-top:14px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;align-items:center}
+    .hint{color:var(--muted);font-size:12px}
+    .badge{background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:999px;color:var(--muted);font-weight:700}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">TFC</div>
+      <div>
+        <h1>Track File Converter</h1>
+        <p class="lead">把常见的轨迹文本（JTWC / BEST 风格）快速转成 Python numpy arrays。粘贴你的文本，点一下转换。</p>
+      </div>
+      <div style="margin-left:auto" class="badge">Single HTML App</div>
+    </header>
+
+    <div class="grid">
+      <div class="panel">
+        <label for="input">输入（粘贴你的轨迹文本，每行一条）</label>
+        <textarea id="input" placeholder="在这里粘贴原始WP格式轨迹...">WP, 16, 2025080518, , BEST, 0, 182N, 1495E, 15, 1009, DB
+WP, 16, 2025080600, , BEST, 0, 182N, 1492E, 15, 1009, DB
+WP, 16, 2025080606, , BEST, 0, 182N, 1489E, 15, 1009, DB
+WP, 16, 2025080612, , BEST, 0, 183N, 1484E, 20, 1008, DB
+WP, 16, 2025080618, , BEST, 0, 183N, 1481E, 20, 1006, DB
+WP, 16, 2025080700, , BEST, 0, 184N, 1479E, 30, 1007, TD
+WP, 16, 2025080706, , BEST, 0, 185N, 1477E, 30, 1007, TD
+WP, 16, 2025080712, , BEST, 0, 189N, 1470E, 35, 1005, TS
+WP, 16, 2025080718, , BEST, 0, 193N, 1463E, 35, 1003, TS
+WP, 16, 2025080800, , BEST, 0, 200N, 1458E, 40, 1003, TS
+WP, 16, 2025080806, , BEST, 0, 206N, 1451E, 40, 1003, TS
+WP, 16, 2025080812, , BEST, 0, 208N, 1442E, 45, 1001, TS</textarea>
+
+        <div class="controls">
+          <button id="convert">✨ 转换 (Convert)</button>
+          <button id="clear" class="btn-ghost small">清空输入</button>
+          <button id="sample" class="btn-ghost small">示例填充</button>
+          <div style="margin-left:auto;color:var(--muted);font-size:13px">Parsed lines: <span id="count">0</span></div>
+        </div>
+
+        <div class="meta">解析规则：寻找形如 <code>182N</code> / <code>1495E</code> 的经纬，若数字无小数则除以10（如 182N→18.2）。强度与气压会尝试从行中拾取第一个整数值（通常在经纬之后）。</div>
+      </div>
+
+      <div class="panel">
+        <label for="output">输出（可复制至 Python）</label>
+        <div id="output" class="out" contenteditable="true" spellcheck="false"># 点击转换按钮生成输出…</div>
+
+        <div class="controls" style="margin-top:12px">
+          <button id="copy">📋 复制输出</button>
+          <button id="download" class="btn-ghost small">⬇️ 下载为 .py</button>
+          <button id="clearOut" class="btn-ghost small">清空输出</button>
+          <div style="margin-left:auto;color:var(--muted);font-size:13px">Lines OK: <span id="okcount">0</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer>
+      <div class="hint">提示：支持 N/S/E/W 后缀。若数值已有小数（例如 18.2N），则不会再除以 10。</div>
+      <div style="color:var(--muted)">Made with ❤️ — Track File Converter</div>
+    </footer>
+  </div>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const convertBtn = document.getElementById('convert');
+    const countSpan = document.getElementById('count');
+    const okSpan = document.getElementById('okcount');
+    const copyBtn = document.getElementById('copy');
+    const clearBtn = document.getElementById('clear');
+    const sampleBtn = document.getElementById('sample');
+    const downloadBtn = document.getElementById('download');
+    const clearOutBtn = document.getElementById('clearOut');
+
+    function parseLine(line){
+      // split by comma
+      const parts = line.split(',').map(s=>s.trim()).filter(s=>s.length>0);
+      if(parts.length<6) return null;
+      // try to find lat/lon tokens by regex
+      const latRegex = /^([0-9]+(?:\.[0-9]+)?)([NS])$/i;
+      const lonRegex = /^([0-9]+(?:\.[0-9]+)?)([EW])$/i;
+      let lat=null, lon=null, intensity=null, mslp=null;
+      for(let i=0;i<parts.length;i++){
+        const p=parts[i];
+        let m;
+        if(!lat && (m=p.match(latRegex))){ lat={raw:m[1],hem:m[2]}; continue; }
+        if(!lon && (m=p.match(lonRegex))){ lon={raw:m[1],hem:m[2]}; continue; }
+      }
+      // intensity and mslp: try to find integer tokens after lon
+      // fallback: find first integer-looking tokens
+      const intRegex = /^-?\d+$/;
+      // prefer tokens following lon
+      let start = 0;
+      if(lon){ start = parts.indexOf(Object.values(parts).find(x=>false)) } // noop
+      // iterate parts to find ints
+      const ints = [];
+      for(let p of parts){ if(intRegex.test(p)) ints.push(parseInt(p,10)); }
+      if(ints.length>=1) intensity = ints[0];
+      if(ints.length>=2) mslp = ints[1];
+
+      if(!lat || !lon) return null;
+
+      function toDeg(raw, hem){
+        let num = parseFloat(raw);
+        if(String(raw).indexOf('.')===-1){ num = num/10; }
+        if(hem.toUpperCase()==='S' || hem.toUpperCase()==='W') num = -num;
+        // round to 4 decimals
+        return Math.round(num*10000)/10000;
+      }
+
+      return {lat:toDeg(lat.raw,lat.hem), lon:toDeg(lon.raw,lon.hem), intensity: intensity, mslp: mslp};
+    }
+
+    function convert(){
+      const text = input.value.trim();
+      if(!text){ output.textContent = '# 输入为空'; return; }
+      const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+      countSpan.textContent = lines.length;
+      const lats = [], lons = [], ints = [], ms = [];
+      let ok = 0;
+      for(const ln of lines){
+        const parsed = parseLine(ln);
+        if(parsed){ lats.push(parsed.lat); lons.push(parsed.lon); ints.push(parsed.intensity==null? 'None' : parsed.intensity); ms.push(parsed.mslp==null? 'None' : parsed.mslp); ok++; }
+      }
+      okSpan.textContent = ok;
+      if(ok===0){ output.textContent = '# 未识别到有效行，请检查格式（要有例如 182N, 1495E）'; return; }
+
+      // build python arrays
+      const makeArr = (name, arr, isNum=true)=>{
+        const vals = arr.map(v => (v===null||v==='None')? 'None' : (isNum? String(v) : `'${v}'`)).join(',');
+        return `${name} = np.array([${vals}])`;
+      }
+      let py = `import numpy as np\n\n`;
+      py += makeArr('lats', lats, true)+"\n";
+      py += makeArr('lons', lons, true)+"\n";
+      py += makeArr('Intens', ints, true)+"\n";
+      py += makeArr('MSLP', ms, true)+"\n";
+
+      output.textContent = py;
+    }
+
+    convertBtn.addEventListener('click', convert);
+    input.addEventListener('input', ()=>{
+      const lines = input.value.split('\n').filter(l=>l.trim().length>0).length;
+      countSpan.textContent = lines;
+    });
+
+    copyBtn.addEventListener('click', ()=>{
+      const txt = output.textContent || '';
+      navigator.clipboard.writeText(txt).then(()=>{ copyBtn.textContent='✅ 已复制'; setTimeout(()=>copyBtn.textContent='📋 复制输出',1200); }).catch(()=>{ copyBtn.textContent='❌ 复制失败'; setTimeout(()=>copyBtn.textContent='📋 复制输出',1200); });
+    });
+
+    clearBtn.addEventListener('click', ()=>{ input.value=''; countSpan.textContent='0'; });
+    clearOutBtn.addEventListener('click', ()=>{ output.textContent=''; okSpan.textContent='0'; });
+
+    sampleBtn.addEventListener('click', ()=>{
+      input.value = `WP, 16, 2025080518, , BEST, 0, 182N, 1495E, 15, 1009, DB\nWP, 16, 2025080600, , BEST, 0, 182N, 1492E, 15, 1009, DB\nWP, 16, 2025080606, , BEST, 0, 182N, 1489E, 15, 1009, DB\nWP, 16, 2025080612, , BEST, 0, 183N, 1484E, 20, 1008, DB`;
+      countSpan.textContent = input.value.split('\n').length;
+    });
+
+    downloadBtn.addEventListener('click', ()=>{
+      const blob = new Blob([output.textContent||'# empty'], {type:'text/x-python'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'track_arrays.py'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    // update initial counts
+    countSpan.textContent = input.value.split('\n').filter(l=>l.trim().length>0).length;
+  </script>
+</body>
+</html>
