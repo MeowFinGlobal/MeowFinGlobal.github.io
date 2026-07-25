@@ -1,10 +1,10 @@
-name: SZ Weather Auto Scraper
+# name: SZ Weather Auto Scraper
 
-on:
-  schedule:
+# on:
+  # schedule:
     # 这里的 cron 时间是 UTC 时间；UTC 45 分对应北京时间 45 分（小时数+8）
-    - cron: '45 * * * *'
-  workflow_dispatch:
+    # - cron: '45 * * * *'
+  # workflow_dispatch:
 
 jobs:
   scrape:
